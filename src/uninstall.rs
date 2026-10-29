@@ -54,3 +54,30 @@ pub fn uninstall(purge: bool) -> io::Result<usize> {
         .status();
     Ok(removed)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn removes_installed_files_and_settings() {
+        let root = std::env::temp_dir().join(format!("stresstest-uninstall-{}", std::process::id()));
+        // GLib reads these the first time a user directory is asked for.
+        std::env::set_var("HOME", &root);
+        std::env::set_var("XDG_DATA_HOME", root.join(".local/share"));
+        std::env::set_var("XDG_CONFIG_HOME", root.join(".config"));
+        std::env::set_var("XDG_CACHE_HOME", root.join(".cache"));
+        let files = installed_files();
+        for path in files.iter().chain([&config_dir().join("config.json")]) {
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, "x").unwrap();
+        }
+        assert!(files.iter().all(|f| f.starts_with(&root)));
+        assert_eq!(uninstall(false).unwrap(), files.len());
+        assert!(files.iter().all(|f| !f.exists()));
+        assert!(config_dir().join("config.json").exists());
+        uninstall(true).unwrap();
+        assert!(!config_dir().exists());
+        let _ = fs::remove_dir_all(root);
+    }
+}

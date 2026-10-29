@@ -1,6 +1,9 @@
 #!/bin/sh
-# Removes Stress from ~/.local. Pass --purge to also delete the settings.
+# Removes Stress from ~/.local, and the system helpers it installed (asks for
+# the sudo password then). Pass --purge to also delete the settings.
 set -eu
+
+cd "$(dirname "$0")"
 
 PREFIX="${PREFIX:-$HOME/.local}"
 APP_ID=io.github.stresstest.Stress
@@ -15,6 +18,11 @@ rm -fv "$PREFIX/bin/stresstest" \
        "$AUTOSTART"
 
 rm -rf "$CACHE_DIR"
+
+if [ -e /etc/udev/rules.d/60-stresstest-rapl.rules ]; then
+    echo "==> Removing processor power access (asks for your sudo password)"
+    sudo sh data/remove-rapl.sh
+fi
 
 gtk4-update-icon-cache -q -t "$PREFIX/share/icons/hicolor" 2>/dev/null || true
 update-desktop-database -q "$PREFIX/share/applications" 2>/dev/null || true

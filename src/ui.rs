@@ -3,6 +3,7 @@
 //! last 30 minutes, plus preferences, about and uninstalling.
 
 mod graph;
+mod helpers;
 mod test;
 
 use std::cell::{Cell, OnceCell, RefCell};
@@ -60,7 +61,6 @@ struct Machine {
     gpus: Vec<Gpu>,
     history: History,
     controller: Controller,
-    rapl_denied: bool,
     /// Taken before the history starts, to know which readings exist.
     first: Sample,
 }
@@ -81,9 +81,8 @@ fn machine() -> Rc<Machine> {
                 let mut sensors = Sensors::new(&gpus);
                 let first = sensors.sample();
                 let controller = Controller::new(gpus.iter().map(|g| g.pci.clone()).collect());
-                let rapl_denied = sensors.rapl_denied;
                 let history = History::start(sensors, controller.clone());
-                Rc::new(Machine { cpu, gpus, history, controller, rapl_denied, first })
+                Rc::new(Machine { cpu, gpus, history, controller, first })
             })
             .clone()
     })
@@ -228,7 +227,10 @@ impl App {
             }
             readings.push(Reading { card, value });
         };
-        let first = &machine.first;
+        // The newest sample, so a rebuilt window shows readings that became
+        // available since the start (such as the processor's power).
+        let latest = machine.history.latest();
+        let first = latest.as_ref().unwrap_or(&machine.first);
 
         let loadable: Vec<(usize, String, String)> = machine
             .gpus
@@ -247,16 +249,7 @@ impl App {
         if first.cpu_power.is_some() {
             add(&cpu, Card::new(tr("Power"), "W", 0, Scale::Power, ""), Box::new(|s| s.cpu_power));
         }
-        if machine.rapl_denied {
-            content.append(
-                &gtk::Label::builder()
-                    .label(tr("CPU power is not available: on this system only the administrator can read it."))
-                    .halign(gtk::Align::Start)
-                    .wrap(true)
-                    .css_classes(["dim-label", "caption"])
-                    .build(),
-            );
-        }
+        let rapl_offer = first.cpu_power.is_none().then_some(&content);
 
         // Graphics cards that can be used; the others are listed with the reason.
         let usable: Vec<usize> =
@@ -353,6 +346,10 @@ impl App {
             refresh_source: RefCell::new(None),
         });
         CURRENT.with(|current| *current.borrow_mut() = Rc::downgrade(&app));
+        if let (Some(content), Some(offer)) = (rapl_offer, app.rapl_offer()) {
+            // Right below the processor's cards.
+            content.insert_child_after(&offer, content.observe_children().item(2).and_downcast_ref::<gtk::Widget>());
+        }
         app.install_actions();
         app.build_test_panel();
         app.tick();
@@ -517,6 +514,7 @@ impl App {
             .build();
         language_group.add(&language);
         page.add(&language_group);
+        page.add(&self.helpers_group(&dialog));
 
         // Uninstalling lives at the bottom here, not in the main menu, so it is a deliberate choice.
         let removal = adw::PreferencesGroup::new();
@@ -661,7 +659,15 @@ impl App {
             Some(tr("The program, its entry in the app menu and the helpers it installed will be removed.")),
         );
         let purge = gtk::CheckButton::builder().label(tr("Also delete the settings")).build();
-        dialog.set_extra_child(Some(&purge));
+        let helpers = gtk::CheckButton::builder()
+            .label(tr("Also remove the system helpers (needs the administrator password)"))
+            .active(true)
+            .visible(!crate::helpers::installed().is_empty())
+            .build();
+        let options = gtk::Box::builder().orientation(gtk::Orientation::Vertical).spacing(6).build();
+        options.append(&purge);
+        options.append(&helpers);
+        dialog.set_extra_child(Some(&options));
         dialog.add_responses(&[("cancel", tr("Cancel")), ("uninstall", tr("Uninstall"))]);
         dialog.set_response_appearance("uninstall", adw::ResponseAppearance::Destructive);
         dialog.set_default_response(Some("cancel"));
@@ -672,8 +678,12 @@ impl App {
             if response != "uninstall" {
                 return;
             }
-            if let Some(app) = weak.upgrade() {
-                app.finish_uninstall(purge.is_active());
+            let Some(app) = weak.upgrade() else { return };
+            let purge = purge.is_active();
+            if helpers.is_visible() && helpers.is_active() {
+                app.remove_helpers_then(move |app| app.finish_uninstall(purge));
+            } else {
+                app.finish_uninstall(purge);
             }
         });
         dialog.present(Some(&self.window));

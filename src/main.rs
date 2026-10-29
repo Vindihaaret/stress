@@ -4,6 +4,7 @@ mod cpuload;
 mod devices;
 mod dl;
 mod gpuload;
+mod helpers;
 mod history;
 mod i18n;
 mod loadtest;

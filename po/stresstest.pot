@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Stress\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-29 18:20+0100\n"
+"POT-Creation-Date: 2026-10-29 18:27+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -33,240 +33,320 @@ msgstr ""
 msgid "Last {} min: {} – {}"
 msgstr ""
 
-#: src/ui.rs:27
+#: src/ui/helpers.rs:23
+msgid "Processor power is not shown"
+msgstr ""
+
+#: src/ui/helpers.rs:24
+msgid "On this system only the administrator can read it."
+msgstr ""
+
+#: src/ui/helpers.rs:26
+msgid "Allow…"
+msgstr ""
+
+#: src/ui/helpers.rs:41
+msgid "Show the processor's power use?"
+msgstr ""
+
+#: src/ui/helpers.rs:42
+msgid ""
+"Stress installs a small system rule that lets programs read the processor's "
+"energy counters. Some systems keep them private because, in rare cases, they "
+"can be used to work out secrets such as encryption keys. You can remove the "
+"rule again in the preferences, and uninstalling Stress removes it too."
+msgstr ""
+
+#: src/ui/helpers.rs:44 src/ui.rs:671
+msgid "Cancel"
+msgstr ""
+
+#: src/ui/helpers.rs:44
+msgid "Allow"
+msgstr ""
+
+#: src/ui/helpers.rs:57
+msgid "The processor's power use is now shown."
+msgstr ""
+
+#: src/ui/helpers.rs:79
+msgid "The administrator task failed: {}"
+msgstr ""
+
+#: src/ui/helpers.rs:87
+msgid "System Helpers"
+msgstr ""
+
+#: src/ui/helpers.rs:88
+msgid ""
+"Changes Stress can make to the system with the administrator password. "
+"Uninstalling Stress removes them."
+msgstr ""
+
+#: src/ui/helpers.rs:90
+msgid "Processor power access"
+msgstr ""
+
+#: src/ui/helpers.rs:92
+msgid "Installed by Stress"
+msgstr ""
+
+#: src/ui/helpers.rs:92
+msgid "Remove"
+msgstr ""
+
+#: src/ui/helpers.rs:93
+msgid "Not installed; the processor's power use is hidden"
+msgstr ""
+
+#: src/ui/helpers.rs:93
+msgid "Install"
+msgstr ""
+
+#: src/ui/helpers.rs:94
+msgid "Not needed on this computer"
+msgstr ""
+
+#: src/ui/helpers.rs:95
+msgid "This processor does not report its power use"
+msgstr ""
+
+#: src/ui/helpers.rs:113
+msgid "Processor power access is removed."
+msgstr ""
+
+#: src/ui/helpers.rs:134
+msgid "Could not remove the system helpers: {}"
+msgstr ""
+
+#: src/ui.rs:28
 msgid "Follow system"
 msgstr ""
 
-#: src/ui.rs:27
+#: src/ui.rs:28
 msgid "Light"
 msgstr ""
 
-#: src/ui.rs:27
+#: src/ui.rs:28
 msgid "Dark"
 msgstr ""
 
-#: src/ui.rs:201
+#: src/ui.rs:200
 msgid "Preferences"
 msgstr ""
 
-#: src/ui.rs:202
+#: src/ui.rs:201
 msgid "About Stress"
 msgstr ""
 
-#: src/ui.rs:204
+#: src/ui.rs:203
 msgid "Quit"
 msgstr ""
 
-#: src/ui.rs:211
+#: src/ui.rs:210
 msgid "Main Menu"
 msgstr ""
 
-#: src/ui.rs:244
+#: src/ui.rs:246
 msgid "{} threads"
 msgstr ""
 
-#: src/ui.rs:245 src/ui.rs:268 src/ui.rs:309
+#: src/ui.rs:247 src/ui.rs:261 src/ui.rs:302
 msgid "Temperature"
 msgstr ""
 
-#: src/ui.rs:246 src/ui.rs:269
+#: src/ui.rs:248 src/ui.rs:262
 msgid "Utilization"
 msgstr ""
 
-#: src/ui.rs:248 src/ui.rs:271
+#: src/ui.rs:250 src/ui.rs:264
 msgid "Power"
 msgstr ""
 
-#: src/ui.rs:253
-msgid ""
-"CPU power is not available: on this system only the administrator can read "
-"it."
-msgstr ""
-
-#: src/ui.rs:274 src/ui.rs:310
+#: src/ui.rs:267 src/ui.rs:303
 msgid "Fan"
 msgstr ""
 
-#: src/ui.rs:280
+#: src/ui.rs:273
 msgid "Graphics Cards"
 msgstr ""
 
-#: src/ui.rs:280
+#: src/ui.rs:273
 msgid "Other Graphics Cards"
 msgstr ""
 
-#: src/ui.rs:287
+#: src/ui.rs:280
 msgid "No graphics card found"
 msgstr ""
 
-#: src/ui.rs:294
+#: src/ui.rs:287
 msgid "The power supply updates its readings every few seconds."
 msgstr ""
 
-#: src/ui.rs:295
+#: src/ui.rs:288
 msgid "Output to the computer"
 msgstr ""
 
-#: src/ui.rs:297
+#: src/ui.rs:290
 msgid "From the wall"
 msgstr ""
 
-#: src/ui.rs:298
+#: src/ui.rs:291
 msgid ""
 "Calculated from the efficiency class; the power supply does not measure it."
 msgstr ""
 
-#: src/ui.rs:302
+#: src/ui.rs:295
 msgid "Rest of the computer"
 msgstr ""
 
-#: src/ui.rs:303
+#: src/ui.rs:296
 msgid ""
 "Motherboard, memory, disks and fans: the power supply's output minus the "
 "processor and graphics cards."
 msgstr ""
 
-#: src/ui.rs:307
+#: src/ui.rs:300
 msgid "Details"
 msgstr ""
 
-#: src/ui.rs:308
+#: src/ui.rs:301
 msgid "Input voltage"
 msgstr ""
 
-#: src/ui.rs:318
+#: src/ui.rs:311
 msgid "{} rail"
 msgstr ""
 
-#: src/ui.rs:467
+#: src/ui.rs:464
 msgid ""
 "Put the processor and graphics card under controlled load and watch "
 "temperatures, fans and power use."
 msgstr ""
 
 #. Translators: put your name(s) here to be credited in the About dialog.
-#: src/ui.rs:476
+#: src/ui.rs:473
 msgid "translator-credits"
 msgstr ""
 
-#: src/ui.rs:486
+#: src/ui.rs:483
 msgid "General"
 msgstr ""
 
-#: src/ui.rs:491
+#: src/ui.rs:488
 msgid "Appearance"
 msgstr ""
 
-#: src/ui.rs:494
+#: src/ui.rs:491
 msgid "Style"
 msgstr ""
 
-#: src/ui.rs:502
+#: src/ui.rs:499
 msgid "System default"
 msgstr ""
 
-#: src/ui.rs:510 src/ui.rs:514
+#: src/ui.rs:507 src/ui.rs:511
 msgid "Language"
 msgstr ""
 
-#: src/ui.rs:511
+#: src/ui.rs:508
 msgid "“System default” uses the language of your desktop."
 msgstr ""
 
-#: src/ui.rs:524
+#: src/ui.rs:522
 msgid "Uninstall Stress"
 msgstr ""
 
-#: src/ui.rs:525
+#: src/ui.rs:523
 msgid ""
 "Removes the program, its menu entry and the helpers it installed, and "
 "optionally the settings."
 msgstr ""
 
-#: src/ui.rs:528 src/ui.rs:665
+#: src/ui.rs:526 src/ui.rs:671
 msgid "Uninstall"
 msgstr ""
 
-#: src/ui.rs:574
+#: src/ui.rs:572
 msgid "Safety"
 msgstr ""
 
-#: src/ui.rs:579
+#: src/ui.rs:577
 msgid "Temperature Limits"
 msgstr ""
 
-#: src/ui.rs:580
+#: src/ui.rs:578
 msgid "A test stops by itself when a limit is reached."
 msgstr ""
 
-#: src/ui.rs:590
+#: src/ui.rs:588
 msgid "Processor"
 msgstr ""
 
-#: src/ui.rs:590 src/ui.rs:591
+#: src/ui.rs:588 src/ui.rs:589
 msgid "°C"
 msgstr ""
 
-#: src/ui.rs:591 src/ui/test.rs:289
+#: src/ui.rs:589 src/ui/test.rs:289
 msgid "Graphics card"
 msgstr ""
 
-#: src/ui.rs:596
+#: src/ui.rs:594
 msgid "Tests"
 msgstr ""
 
-#: src/ui.rs:598
+#: src/ui.rs:596
 msgid "Longest test"
 msgstr ""
 
-#: src/ui.rs:599
+#: src/ui.rs:597
 msgid "Minutes. Also applies to tests started without a duration."
 msgstr ""
 
-#: src/ui.rs:604
+#: src/ui.rs:602
 msgid "Stop when running on battery"
 msgstr ""
 
-#: src/ui.rs:660
+#: src/ui.rs:658
 msgid "Uninstall Stress?"
 msgstr ""
 
-#: src/ui.rs:661
+#: src/ui.rs:659
 msgid ""
 "The program, its entry in the app menu and the helpers it installed will be "
 "removed."
 msgstr ""
 
-#: src/ui.rs:663
+#: src/ui.rs:661
 msgid "Also delete the settings"
 msgstr ""
 
-#: src/ui.rs:665
-msgid "Cancel"
+#: src/ui.rs:663
+msgid "Also remove the system helpers (needs the administrator password)"
 msgstr ""
 
-#: src/ui.rs:684
+#: src/ui.rs:694
 msgid "Uninstalling failed: {}"
 msgstr ""
 
-#: src/ui.rs:688
+#: src/ui.rs:698
 msgid ""
 "Stress and all its settings have been removed. The window will now close."
 msgstr ""
 
-#: src/ui.rs:690
+#: src/ui.rs:700
 msgid "Stress has been removed. The window will now close."
 msgstr ""
 
-#: src/ui.rs:692
+#: src/ui.rs:702
 msgid "Uninstalled"
 msgstr ""
 
-#: src/ui.rs:693
+#: src/ui.rs:703
 msgid "Close"
 msgstr ""
 
-#: src/ui.rs:703
+#: src/ui.rs:713
 msgid "drives the screen"
 msgstr ""
 

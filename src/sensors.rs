@@ -115,6 +115,10 @@ impl Sensors {
 
     pub fn sample(&mut self) -> Sample {
         let now = Instant::now();
+        // Access may be granted while running (the RAPL helper).
+        if self.rapl_denied && self.rapl.is_empty() {
+            (self.rapl, self.rapl_denied) = find_rapl();
+        }
         let cpu_power = self
             .rapl
             .iter_mut()
@@ -298,6 +302,23 @@ fn find_cpu_temperature(hwmons: &[(PathBuf, String)]) -> Option<PathBuf> {
         return Some(path.join("temp1_input"));
     }
     None
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum RaplAccess {
+    Readable,
+    /// The counters exist but only root can read them.
+    Denied,
+    /// The processor does not report its energy use.
+    Missing,
+}
+
+pub fn rapl_access() -> RaplAccess {
+    match find_rapl() {
+        (domains, _) if !domains.is_empty() => RaplAccess::Readable,
+        (_, true) => RaplAccess::Denied,
+        _ => RaplAccess::Missing,
+    }
 }
 
 /// The package domains under /sys/class/powercap (also used by AMD), and
