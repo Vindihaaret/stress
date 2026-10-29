@@ -165,6 +165,7 @@ struct PsuLabels {
 pub struct App {
     window: adw::ApplicationWindow,
     title: adw::WindowTitle,
+    scroll: gtk::ScrolledWindow,
     toasts: adw::ToastOverlay,
     test: TestControls,
     /// How the last test ended, as shown under the panel.
@@ -388,6 +389,7 @@ impl App {
         let app = Rc::new(App {
             window,
             title,
+            scroll,
             toasts,
             test,
             last_test: RefCell::new(None),
@@ -446,9 +448,34 @@ impl App {
 
     /// Development aid: render the window to a PNG and quit, since GNOME on
     /// Wayland does not let other programs capture it.
+    ///
+    /// `tour` idles for 30 seconds, starts a test with the saved setup and,
+    /// after the delay, captures the panel as `<path>-test.png` and the
+    /// readings further down as `<path>-readings.png`.
     fn schedule_screenshot(self: &Rc<Self>, path: String, page: Option<String>) {
         let weak = Rc::downgrade(self);
         let delay = std::env::var("STRESS_SCREENSHOT_DELAY").ok().and_then(|d| d.parse().ok()).unwrap_or(3);
+        if page.as_deref() == Some("tour") {
+            let start = weak.clone();
+            glib::timeout_add_local_once(Duration::from_secs(30), move || {
+                if let Some(app) = start.upgrade() {
+                    app.start_test();
+                }
+            });
+            glib::timeout_add_local_once(Duration::from_secs(delay), move || {
+                let Some(app) = weak.upgrade() else { return };
+                capture(&app.window, &format!("{path}-test.png"));
+                let adjustment = app.scroll.vadjustment();
+                adjustment.set_value(adjustment.upper());
+                let weak = Rc::downgrade(&app);
+                glib::timeout_add_local_once(Duration::from_millis(1500), move || {
+                    let Some(app) = weak.upgrade() else { return };
+                    capture(&app.window, &format!("{path}-readings.png"));
+                    app.force_close();
+                });
+            });
+            return;
+        }
         glib::timeout_add_local_once(Duration::from_secs(delay), move || {
             let Some(app) = weak.upgrade() else { return };
             if page.as_deref() == Some("about") {
@@ -462,19 +489,7 @@ impl App {
             let window = app.window.clone();
             let weak = Rc::downgrade(&app);
             glib::timeout_add_local_once(Duration::from_millis(1500), move || {
-                let paintable = gtk::WidgetPaintable::new(Some(&window));
-                let snapshot = gtk::Snapshot::new();
-                paintable.snapshot(&snapshot, window.width() as f64, window.height() as f64);
-                match (snapshot.to_node(), window.renderer()) {
-                    (Some(node), Some(renderer)) => {
-                        if let Err(err) = renderer.render_texture(node, None).save_to_png(&path) {
-                            eprintln!("screenshot: {err}");
-                        }
-                    }
-                    (node, renderer) => {
-                        eprintln!("screenshot: node={} renderer={}", node.is_some(), renderer.is_some())
-                    }
-                }
+                capture(&window, &path);
                 if let Some(app) = weak.upgrade() {
                     app.force_close();
                 }
@@ -894,6 +909,21 @@ fn gpu_subtitle(gpu: &Gpu) -> String {
         parts.push(reason);
     }
     parts.join(" · ")
+}
+
+/// Renders a window to a PNG (development aid for screenshots).
+fn capture(window: &adw::ApplicationWindow, path: &str) {
+    let paintable = gtk::WidgetPaintable::new(Some(window));
+    let snapshot = gtk::Snapshot::new();
+    paintable.snapshot(&snapshot, window.width() as f64, window.height() as f64);
+    match (snapshot.to_node(), window.renderer()) {
+        (Some(node), Some(renderer)) => {
+            if let Err(err) = renderer.render_texture(node, None).save_to_png(path) {
+                eprintln!("screenshot: {err}");
+            }
+        }
+        (node, renderer) => eprintln!("screenshot: node={} renderer={}", node.is_some(), renderer.is_some()),
+    }
 }
 
 /// Power the power supply delivers beyond the processor and graphics cards.
