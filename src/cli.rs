@@ -26,6 +26,11 @@ static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 /// Runs a command-line subcommand, or returns `None` when the arguments are
 /// for the window.
 pub fn run_command(args: &[String]) -> Option<ExitCode> {
+    if matches!(args.first().map(String::as_str), Some("probe" | "monitor" | "run" | "--help" | "-h" | "help")) {
+        // Rust ignores SIGPIPE, which turns `stresstest probe | head` into a
+        // panic once head has read enough; end quietly like other tools.
+        unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
+    }
     let result = match args.first().map(String::as_str) {
         Some("gpu-worker") => std::process::exit(gpuload::worker_main(args.get(1).map_or("", String::as_str))),
         Some("probe") => probe(),
