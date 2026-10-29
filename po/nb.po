@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Stress\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-29 18:43+0100\n"
+"POT-Creation-Date: 2026-10-29 19:17+0100\n"
 "PO-Revision-Date: 2026-10-29 18:00+0100\n"
 "Last-Translator: \n"
 "Language-Team: Norwegian Bokmål\n"
@@ -39,7 +39,7 @@ msgstr "Stopp testen"
 msgid "Start a Test"
 msgstr "Start en test"
 
-#: src/tray.rs:91 src/ui.rs:253
+#: src/tray.rs:91 src/ui.rs:256
 msgid "Quit"
 msgstr "Avslutt"
 
@@ -159,7 +159,7 @@ msgid ""
 "rule again in the preferences, and uninstalling Stress removes it too."
 msgstr "Stress installerer en liten systemregel som lar programmer lese prosessorens energitellere. Noen systemer holder dem private fordi de i sjeldne tilfeller kan brukes til å regne ut hemmeligheter som krypteringsnøkler. Du kan fjerne regelen igjen i innstillingene, og den fjernes også når du avinstallerer Stress."
 
-#: src/ui/helpers.rs:44 src/ui.rs:832
+#: src/ui/helpers.rs:44 src/ui.rs:844
 msgid "Cancel"
 msgstr "Avbryt"
 
@@ -221,286 +221,290 @@ msgstr "Tilgangen til prosessorens effekt er fjernet."
 msgid "Could not remove the system helpers: {}"
 msgstr "Kunne ikke fjerne systemhjelperne: {}"
 
-#: src/ui.rs:31
+#: src/ui.rs:33
 msgid "Follow system"
 msgstr "Følg systemet"
 
-#: src/ui.rs:31
+#: src/ui.rs:33
 msgid "Light"
 msgstr "Lys"
 
-#: src/ui.rs:31
+#: src/ui.rs:33
 msgid "Dark"
 msgstr "Mørk"
 
-#: src/ui.rs:250
+#: src/ui.rs:252
 msgid "Preferences"
 msgstr "Innstillinger"
 
-#: src/ui.rs:251
+#: src/ui.rs:253
+msgid "Check for Updates…"
+msgstr "Se etter oppdateringer …"
+
+#: src/ui.rs:254
 msgid "About Stress"
 msgstr "Om Stress"
 
-#: src/ui.rs:260
+#: src/ui.rs:263
 msgid "Main Menu"
 msgstr "Hovedmeny"
 
-#: src/ui.rs:296
+#: src/ui.rs:299
 msgid "{} threads"
 msgstr "{} tråder"
 
-#: src/ui.rs:297 src/ui.rs:311 src/ui.rs:352
+#: src/ui.rs:300 src/ui.rs:314 src/ui.rs:355
 msgid "Temperature"
 msgstr "Temperatur"
 
-#: src/ui.rs:298 src/ui.rs:312
+#: src/ui.rs:301 src/ui.rs:315
 msgid "Utilization"
 msgstr "Utnyttelse"
 
-#: src/ui.rs:300 src/ui.rs:314
+#: src/ui.rs:303 src/ui.rs:317
 msgid "Power"
 msgstr "Effekt"
 
-#: src/ui.rs:317 src/ui.rs:353
+#: src/ui.rs:320 src/ui.rs:356
 msgid "Fan"
 msgstr "Vifte"
 
-#: src/ui.rs:323
+#: src/ui.rs:326
 msgid "Graphics Cards"
 msgstr "Skjermkort"
 
-#: src/ui.rs:323
+#: src/ui.rs:326
 msgid "Other Graphics Cards"
 msgstr "Andre skjermkort"
 
-#: src/ui.rs:330
+#: src/ui.rs:333
 msgid "No graphics card found"
 msgstr "Fant ikke noe skjermkort"
 
-#: src/ui.rs:337
+#: src/ui.rs:340
 msgid "The power supply updates its readings every few seconds."
 msgstr "Strømforsyningen oppdaterer målingene sine med noen sekunders mellomrom."
 
-#: src/ui.rs:338
+#: src/ui.rs:341
 msgid "Output to the computer"
 msgstr "Levert til maskinen"
 
-#: src/ui.rs:340
+#: src/ui.rs:343
 msgid "From the wall"
 msgstr "Fra stikkontakten"
 
-#: src/ui.rs:341
+#: src/ui.rs:344
 msgid ""
 "Calculated from the efficiency class; the power supply does not measure it."
 msgstr "Beregnet ut fra virkningsgradklassen; strømforsyningen måler det ikke selv."
 
-#: src/ui.rs:345
+#: src/ui.rs:348
 msgid "Rest of the computer"
 msgstr "Resten av maskinen"
 
-#: src/ui.rs:346
+#: src/ui.rs:349
 msgid ""
 "Motherboard, memory, disks and fans: the power supply's output minus the "
 "processor and graphics cards."
 msgstr "Hovedkort, minne, disker og vifter: det strømforsyningen leverer, minus prosessor og skjermkort."
 
-#: src/ui.rs:350
+#: src/ui.rs:353 src/ui/update.rs:332
 msgid "Details"
 msgstr "Detaljer"
 
-#: src/ui.rs:351
+#: src/ui.rs:354
 msgid "Input voltage"
 msgstr "Inngangsspenning"
 
-#: src/ui.rs:361
+#: src/ui.rs:364
 msgid "{} rail"
 msgstr "{}-skinne"
 
-#: src/ui.rs:515
+#: src/ui.rs:518
 msgid "Stress is still running"
 msgstr "Stress kjører fortsatt"
 
-#: src/ui.rs:516
+#: src/ui.rs:519
 msgid ""
 "Stress is in the status icon, and a running test carries on. Quit from the "
 "icon."
 msgstr "Stress ligger i statusikonet, og en pågående test fortsetter. Avslutt fra ikonet."
 
-#: src/ui.rs:541
+#: src/ui.rs:544
 msgid "Processor: {}"
 msgstr "Prosessor: {}"
 
-#: src/ui.rs:548
+#: src/ui.rs:551
 msgid "Power supply: {}"
 msgstr "Strømforsyning: {}"
 
-#: src/ui.rs:587
+#: src/ui.rs:598
 msgid ""
 "Put the processor and graphics card under controlled load and watch "
 "temperatures, fans and power use."
 msgstr "Sett prosessor og skjermkort under kontrollert last og følg temperaturer, vifter og strømforbruk."
 
 #. Translators: put your name(s) here to be credited in the About dialog.
-#: src/ui.rs:596
+#: src/ui.rs:607
 msgid "translator-credits"
 msgstr "Jan Ivar Sørensen"
 
-#: src/ui.rs:606
+#: src/ui.rs:617
 msgid "General"
 msgstr "Generelt"
 
-#: src/ui.rs:611
+#: src/ui.rs:622
 msgid "Appearance"
 msgstr "Utseende"
 
-#: src/ui.rs:614
+#: src/ui.rs:625
 msgid "Style"
 msgstr "Stil"
 
-#: src/ui.rs:621
+#: src/ui.rs:632
 msgid "Window"
 msgstr "Vindu"
 
-#: src/ui.rs:624
+#: src/ui.rs:635
 msgid "Keep in the status icon when the window is closed"
 msgstr "Behold i statusikonet når vinduet lukkes"
 
-#: src/ui.rs:629
+#: src/ui.rs:640
 msgid ""
 "Instead of quitting. A running test carries on, and the icon shows its "
 "temperature."
 msgstr "I stedet for å avslutte. En pågående test fortsetter, og ikonet viser temperaturen."
 
-#: src/ui.rs:631
+#: src/ui.rs:642
 msgid "Needs a status icon area. On GNOME, install the AppIndicator extension."
 msgstr "Krever et område for statusikoner. På GNOME må du installere AppIndicator-utvidelsen."
 
-#: src/ui.rs:643
+#: src/ui.rs:654
 msgid "System default"
 msgstr "Systemstandard"
 
-#: src/ui.rs:651 src/ui.rs:655
+#: src/ui.rs:662 src/ui.rs:666
 msgid "Language"
 msgstr "Språk"
 
-#: src/ui.rs:652
+#: src/ui.rs:663
 msgid "“System default” uses the language of your desktop."
 msgstr "«Systemstandard» bruker språket på skrivebordet ditt."
 
-#: src/ui.rs:666
+#: src/ui.rs:678
 msgid "Uninstall Stress"
 msgstr "Avinstaller Stress"
 
-#: src/ui.rs:667
+#: src/ui.rs:679
 msgid ""
 "Removes the program, its menu entry and the helpers it installed, and "
 "optionally the settings."
 msgstr "Fjerner programmet, menyoppføringen og hjelpeprogrammene det installerte, og eventuelt innstillingene."
 
-#: src/ui.rs:670 src/ui.rs:832
+#: src/ui.rs:682 src/ui.rs:844
 msgid "Uninstall"
 msgstr "Avinstaller"
 
-#: src/ui.rs:717
+#: src/ui.rs:729
 msgid "Safety"
 msgstr "Sikkerhet"
 
-#: src/ui.rs:722
+#: src/ui.rs:734
 msgid "Temperature Limits"
 msgstr "Temperaturgrenser"
 
-#: src/ui.rs:723
+#: src/ui.rs:735
 msgid "A test stops by itself when a limit is reached."
 msgstr "En test stopper av seg selv når en grense nås."
 
-#: src/ui.rs:733
+#: src/ui.rs:745
 msgid "Processor"
 msgstr "Prosessor"
 
-#: src/ui.rs:733 src/ui.rs:734
+#: src/ui.rs:745 src/ui.rs:746
 msgid "°C"
 msgstr "°C"
 
-#: src/ui.rs:734 src/ui/test.rs:318
+#: src/ui.rs:746 src/ui/test.rs:318
 msgid "Graphics card"
 msgstr "Skjermkort"
 
-#: src/ui.rs:739
+#: src/ui.rs:751
 msgid "Tests"
 msgstr "Tester"
 
-#: src/ui.rs:741
+#: src/ui.rs:753
 msgid "Longest test"
 msgstr "Lengste test"
 
-#: src/ui.rs:742
+#: src/ui.rs:754
 msgid "Minutes. Also applies to tests started without a duration."
 msgstr "Minutter. Gjelder også tester som startes uten varighet."
 
-#: src/ui.rs:747
+#: src/ui.rs:759
 msgid "Stop when running on battery"
 msgstr "Stopp ved batteridrift"
 
-#: src/ui.rs:755
+#: src/ui.rs:767
 msgid "Fan Control"
 msgstr "Viftestyring"
 
-#: src/ui.rs:760
+#: src/ui.rs:772
 msgid ""
 "Running. Tests also stop at {} °C, 5 °C below Vifte's emergency temperature, "
 "and whenever Vifte reports a problem."
 msgstr "Kjører. Tester stopper også ved {} °C, 5 °C under Viftes nødtemperatur, og når Vifte melder om et problem."
 
-#: src/ui.rs:761
+#: src/ui.rs:773
 msgid "Running. Tests stop whenever Vifte reports a problem."
 msgstr "Kjører. Tester stopper når Vifte melder om et problem."
 
-#: src/ui.rs:765
+#: src/ui.rs:777
 msgid ""
 "Not running. When Vifte controls the fans, tests also respect its emergency "
 "temperature."
 msgstr "Kjører ikke. Når Vifte styrer viftene, respekterer testene også nødtemperaturen dens."
 
-#: src/ui.rs:819
+#: src/ui.rs:831
 msgid "Uninstall Stress?"
 msgstr "Avinstallere Stress?"
 
-#: src/ui.rs:820
+#: src/ui.rs:832
 msgid ""
 "The program, its entry in the app menu and the helpers it installed will be "
 "removed."
 msgstr "Programmet, oppføringen i programmenyen og hjelpeprogrammene det installerte blir fjernet."
 
-#: src/ui.rs:822
+#: src/ui.rs:834
 msgid "Also delete the settings"
 msgstr "Slett også innstillingene"
 
-#: src/ui.rs:824
+#: src/ui.rs:836
 msgid "Also remove the system helpers (needs the administrator password)"
 msgstr "Fjern også systemhjelperne (krever administratorpassordet)"
 
-#: src/ui.rs:856
+#: src/ui.rs:868
 msgid "Uninstalling failed: {}"
 msgstr "Avinstalleringen mislyktes: {}"
 
-#: src/ui.rs:860
+#: src/ui.rs:872
 msgid ""
 "Stress and all its settings have been removed. The window will now close."
 msgstr "Stress og alle innstillingene er fjernet. Vinduet lukkes nå."
 
-#: src/ui.rs:862
+#: src/ui.rs:874
 msgid "Stress has been removed. The window will now close."
 msgstr "Stress er fjernet. Vinduet lukkes nå."
 
-#: src/ui.rs:864
+#: src/ui.rs:876
 msgid "Uninstalled"
 msgstr "Avinstallert"
 
-#: src/ui.rs:865
+#: src/ui.rs:877 src/ui/update.rs:345
 msgid "Close"
 msgstr "Lukk"
 
-#: src/ui.rs:879
+#: src/ui.rs:891
 msgid "drives the screen"
 msgstr "styrer skjermen"
 
@@ -592,7 +596,7 @@ msgstr "Klar"
 msgid "Stop"
 msgstr "Stopp"
 
-#: src/ui/test.rs:253
+#: src/ui/test.rs:253 src/ui/update.rs:316
 msgid "Starting…"
 msgstr "Starter …"
 
@@ -645,3 +649,115 @@ msgstr "Skjermkortlast"
 #: src/ui/test.rs:333
 msgid "Duration"
 msgstr "Varighet"
+
+#: src/ui/update.rs:212
+msgid "Could not check for updates"
+msgstr "Kunne ikke se etter oppdateringer"
+
+#: src/ui/update.rs:212 src/ui/update.rs:358
+msgid "Error: {}"
+msgstr "Feil: {}"
+
+#: src/ui/update.rs:225
+msgid "Stress is up to date"
+msgstr "Stress er oppdatert"
+
+#: src/ui/update.rs:226
+msgid "You have the newest version ({})."
+msgstr "Du har den nyeste versjonen ({})."
+
+#: src/ui/update.rs:239 src/ui/update.rs:260
+msgid "Stress {} is available"
+msgstr "Stress {} er tilgjengelig"
+
+#: src/ui/update.rs:240
+msgid "Click to see what is new and update."
+msgstr "Klikk for å se hva som er nytt og oppdatere."
+
+#: src/ui/update.rs:249
+msgid "OK"
+msgstr "OK"
+
+#: src/ui/update.rs:255
+msgid "You have version {}."
+msgstr "Du har versjon {}."
+
+#: src/ui/update.rs:258
+msgid ""
+"Stress runs from a source folder. Update it with “git pull” and run "
+"install.sh."
+msgstr "Stress kjører fra en kildekodemappe. Oppdater med «git pull» og kjør install.sh."
+
+#: src/ui/update.rs:282
+msgid "Skip This Version"
+msgstr "Hopp over denne versjonen"
+
+#: src/ui/update.rs:283 src/ui/update.rs:398
+msgid "Later"
+msgstr "Senere"
+
+#: src/ui/update.rs:285
+msgid "Update Now"
+msgstr "Oppdater nå"
+
+#: src/ui/update.rs:289
+msgid "Open GitHub"
+msgstr "Åpne GitHub"
+
+#: src/ui/update.rs:311
+msgid "Updating to Stress {}"
+msgstr "Oppdaterer til Stress {}"
+
+#: src/ui/update.rs:312
+msgid ""
+"Downloading and installing the new version. If it has to be built on this "
+"computer, this takes a few minutes."
+msgstr "Laster ned og installerer den nye versjonen. Hvis den må bygges på denne maskinen, tar det noen minutter."
+
+#: src/ui/update.rs:358 src/ui/update.rs:386
+msgid "The update failed"
+msgstr "Oppdateringen feilet"
+
+#: src/ui/update.rs:387
+msgid "Stress was not changed. See the details below."
+msgstr "Stress ble ikke endret. Se detaljene under."
+
+#: src/ui/update.rs:395
+msgid "Stress {} is installed"
+msgstr "Stress {} er installert"
+
+#: src/ui/update.rs:396
+msgid "Restart Stress to use the new version."
+msgstr "Start Stress på nytt for å bruke den nye versjonen."
+
+#: src/ui/update.rs:398
+msgid "Restart Now"
+msgstr "Start på nytt nå"
+
+#: src/ui/update.rs:429
+msgid "Updates"
+msgstr "Oppdateringer"
+
+#: src/ui/update.rs:431
+msgid "Check for updates automatically"
+msgstr "Se etter oppdateringer automatisk"
+
+#: src/ui/update.rs:432
+msgid "Once a month, from GitHub"
+msgstr "Én gang i måneden, fra GitHub"
+
+#: src/ui/update.rs:440
+msgid "never"
+msgstr "aldri"
+
+#: src/ui/update.rs:442
+msgid "Check for updates now"
+msgstr "Se etter oppdateringer nå"
+
+#: src/ui/update.rs:443
+msgid "Version {} · last checked: {}"
+msgstr "Versjon {} · sist sjekket: {}"
+
+#: src/ui/update.rs:445
+msgid "Check"
+msgstr "Sjekk"

@@ -40,6 +40,12 @@ pub struct Config {
     /// Closing the window keeps Stress in the status icon instead of quitting,
     /// and a running test carries on.
     pub close_to_tray: bool,
+    /// Look for a new release on GitHub once a month.
+    pub auto_update_check: bool,
+    /// Unix time of the last successful update check.
+    pub last_update_check: i64,
+    /// A release tag the user chose to skip.
+    pub skipped_version: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -67,6 +73,9 @@ impl Default for Config {
             duration_minutes: 10,
             claude_control: false,
             close_to_tray: false,
+            auto_update_check: true,
+            last_update_check: 0,
+            skipped_version: None,
         }
     }
 }

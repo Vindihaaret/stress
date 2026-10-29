@@ -13,6 +13,8 @@ pub struct GpuReading {
     pub temperature: Option<f64>,
     pub utilization: Option<f64>,
     pub power: Option<f64>,
+    /// The most power the card may draw (W), the reference for load levels.
+    pub power_limit: Option<f64>,
     pub fan_percent: Option<f64>,
 }
 
@@ -64,6 +66,8 @@ struct Rapl {
 struct Psu {
     hwmon: PathBuf,
     name: String,
+    /// Model from the USB product string, e.g. "HX1000i".
+    model: Option<String>,
     rated_watts: Option<f64>,
 }
 
@@ -93,12 +97,13 @@ impl Sensors {
             })
             .collect();
         let psu = hwmons.iter().find(|(_, name)| name == "corsairpsu").map(|(path, _)| {
-            let product = product_name(path);
-            Psu {
-                hwmon: path.clone(),
-                rated_watts: product.as_deref().and_then(rated_watts),
-                name: product.unwrap_or_else(|| "Corsair PSU".into()),
-            }
+            let (manufacturer, model) = usb_names(path);
+            let name = match (&manufacturer, &model) {
+                (Some(maker), Some(model)) => format!("{maker} {model}"),
+                (None, Some(model)) => model.clone(),
+                _ => "PSU".into(),
+            };
+            Psu { hwmon: path.clone(), name, rated_watts: model.as_deref().and_then(rated_watts), model }
         });
         let mut sensors = Sensors {
             cpu_temperature: find_cpu_temperature(&hwmons),
@@ -166,6 +171,7 @@ fn read_gpu(source: &mut GpuSource, now: Instant) -> GpuReading {
                 reading.power = read_f64(&h.join("power1_average"))
                     .or_else(|| read_f64(&h.join("power1_input")))
                     .map(|v| v / 1e6);
+                reading.power_limit = read_f64(&h.join("power1_cap")).map(|v| v / 1e6).filter(|w| *w > 0.0);
                 // Intel reports an energy counter (µJ) instead of power.
                 if reading.power.is_none() {
                     if let Some(e) = read_f64(&h.join("energy1_input")) {
@@ -202,8 +208,8 @@ fn read_psu(psu: &Psu) -> Option<PsuReading> {
     Some(PsuReading {
         name: psu.name.clone(),
         output,
-        input_estimate: psu.rated_watts.and_then(|rated| {
-            efficiency(&psu.name, output / rated).map(|eff| output / eff)
+        input_estimate: psu.rated_watts.zip(psu.model.as_deref()).and_then(|(rated, model)| {
+            efficiency(model, output / rated).map(|eff| output / eff)
         }),
         input_volts: value("v_in"),
         temperature: read_f64(&psu.hwmon.join("temp1_input")).map(|v| v / 1000.0),
@@ -231,8 +237,8 @@ fn labelled(hwmon: &Path) -> Vec<(String, f64)> {
 /// Typical 80 PLUS efficiency at 230 V by load fraction, for Corsair's naming:
 /// AXi is Titanium, HXi Platinum, RMi Gold. Below 10 % load the curves are
 /// extrapolated, so the estimate is rougher at idle.
-fn efficiency(name: &str, load: f64) -> Option<f64> {
-    let model = name.trim_start_matches("Corsair ").to_uppercase();
+fn efficiency(model: &str, load: f64) -> Option<f64> {
+    let model = model.to_uppercase();
     let curve: &[(f64, f64)] = if model.starts_with("AX") {
         &[(0.02, 0.80), (0.05, 0.88), (0.10, 0.92), (0.20, 0.94), (0.50, 0.96), (1.0, 0.94)]
     } else if model.starts_with("HX") {
@@ -249,25 +255,39 @@ fn efficiency(name: &str, load: f64) -> Option<f64> {
     })
 }
 
-/// "HX1000i Power Supply" -> 1000 W.
-fn rated_watts(product: &str) -> Option<f64> {
-    let model = product.trim_start_matches("Corsair ").split_whitespace().next()?;
+/// "HX1000i" -> 1000 W.
+fn rated_watts(model: &str) -> Option<f64> {
     let digits: String = model.chars().skip_while(|c| !c.is_ascii_digit()).take_while(|c| c.is_ascii_digit()).collect();
     digits.parse().ok().filter(|w| *w >= 200.0)
 }
 
-/// USB product string of the device behind a hwmon, e.g. "HX1000i Power Supply".
-fn product_name(hwmon: &Path) -> Option<String> {
-    let mut dir = fs::canonicalize(hwmon.join("device")).ok()?;
+/// Manufacturer and model of the USB device behind a hwmon, from its
+/// descriptor strings: ("Corsair", "HX1000i") for "CORSAIR" and "HX1000i Power
+/// Supply". Either is `None` when the device does not say.
+fn usb_names(hwmon: &Path) -> (Option<String>, Option<String>) {
+    let read = |dir: &Path, name: &str| {
+        fs::read_to_string(dir.join(name)).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+    };
+    let Ok(mut dir) = fs::canonicalize(hwmon.join("device")) else { return (None, None) };
     loop {
-        if let Ok(product) = fs::read_to_string(dir.join("product")) {
-            let product = product.trim().trim_end_matches(" Power Supply").to_string();
-            return Some(format!("Corsair {product}"));
+        if let Some(product) = read(&dir, "product") {
+            let model = product.trim_end_matches("Power Supply").trim().to_string();
+            return (read(&dir, "manufacturer").map(|m| title_case(&m)), Some(model).filter(|m| !m.is_empty()));
         }
         if !dir.pop() || dir == Path::new("/sys/devices") {
-            return None;
+            return (None, None);
         }
     }
+}
+
+/// "CORSAIR" -> "Corsair"; names already in mixed case are kept.
+fn title_case(name: &str) -> String {
+    if name.chars().any(|c| c.is_lowercase()) {
+        return name.to_string();
+    }
+    let lower = name.to_lowercase();
+    let mut chars = lower.chars();
+    chars.next().map(|c| c.to_uppercase().chain(chars).collect()).unwrap_or_default()
 }
 
 fn hwmons() -> Vec<(PathBuf, String)> {
@@ -364,17 +384,22 @@ mod tests {
 
     #[test]
     fn rated_watts_from_product() {
-        assert_eq!(rated_watts("HX1000i Power Supply"), Some(1000.0));
+        assert_eq!(rated_watts("HX1000i"), Some(1000.0));
         assert_eq!(rated_watts("RM850x"), Some(850.0));
-        assert_eq!(rated_watts("Corsair HX1000i"), Some(1000.0));
         assert_eq!(rated_watts("Something"), None);
     }
 
     #[test]
     fn efficiency_interpolates() {
-        let eff = efficiency("Corsair HX1000i", 0.35).unwrap();
+        let eff = efficiency("HX1000i", 0.35).unwrap();
         assert!(eff > 0.92 && eff < 0.94);
-        assert_eq!(efficiency("Corsair HX1000i", 0.0), Some(0.75));
-        assert_eq!(efficiency("Unknown PSU", 0.5), None);
+        assert_eq!(efficiency("HX1000i", 0.0), Some(0.75));
+        assert_eq!(efficiency("PSU", 0.5), None);
+    }
+
+    #[test]
+    fn manufacturer_names_read_naturally() {
+        assert_eq!(title_case("CORSAIR"), "Corsair");
+        assert_eq!(title_case("be quiet!"), "be quiet!");
     }
 }

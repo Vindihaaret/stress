@@ -6,6 +6,7 @@ pub mod claude;
 mod graph;
 mod helpers;
 mod test;
+mod update;
 
 use std::cell::{Cell, OnceCell, RefCell};
 use std::rc::Rc;
@@ -25,6 +26,7 @@ use graph::{Card, Scale};
 use test::TestControls;
 
 pub use claude::{register as register_claude, unregister_from_claude_code};
+pub use update::start_auto_checks as start_update_checks;
 
 const REFRESH_INTERVAL: Duration = Duration::from_secs(1);
 const APPEARANCES: [Appearance; 3] = [Appearance::System, Appearance::Light, Appearance::Dark];
@@ -248,6 +250,7 @@ impl App {
         header.set_title_widget(Some(&title));
         let menu = gio::Menu::new();
         menu.append(Some(tr("Preferences")), Some("win.preferences"));
+        menu.append(Some(tr("Check for Updates…")), Some("win.check-update"));
         menu.append(Some(tr("About Stress")), Some("win.about"));
         let quit = gio::Menu::new();
         quit.append(Some(tr("Quit")), Some("app.quit"));
@@ -576,7 +579,15 @@ impl App {
                 }
             })
             .build();
-        self.window.add_action_entries([preferences, about]);
+        let weak = Rc::downgrade(self);
+        let check_update = gio::ActionEntry::builder("check-update")
+            .activate(move |_: &adw::ApplicationWindow, _, _| {
+                if let Some(app) = weak.upgrade() {
+                    app.check_for_updates(true);
+                }
+            })
+            .build();
+        self.window.add_action_entries([preferences, about, check_update]);
     }
 
     fn show_about(&self) {
@@ -658,6 +669,7 @@ impl App {
             .build();
         language_group.add(&language);
         page.add(&language_group);
+        page.add(&self.update_preferences_group());
         page.add(&self.helpers_group(&dialog));
 
         // Uninstalling lives at the bottom here, not in the main menu, so it is a deliberate choice.

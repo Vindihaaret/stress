@@ -22,6 +22,7 @@ pub struct Nvml {
     temperature: unsafe extern "C" fn(Device, c_int, *mut c_uint) -> c_int,
     utilization: unsafe extern "C" fn(Device, *mut Utilization) -> c_int,
     fan: unsafe extern "C" fn(Device, *mut c_uint) -> c_int,
+    power_limit: unsafe extern "C" fn(Device, *mut c_uint) -> c_int,
 }
 
 /// NVML, or `None` when the NVIDIA driver is not installed.
@@ -45,6 +46,7 @@ impl Nvml {
                 temperature: lib.sym("nvmlDeviceGetTemperature")?,
                 utilization: lib.sym("nvmlDeviceGetUtilizationRates")?,
                 fan: lib.sym("nvmlDeviceGetFanSpeed")?,
+                power_limit: lib.sym("nvmlDeviceGetEnforcedPowerLimit")?,
             })
         }
     }
@@ -74,6 +76,9 @@ impl Nvml {
             }
             if (self.power)(dev, &mut v) == 0 {
                 reading.power = Some(v as f64 / 1000.0);
+            }
+            if (self.power_limit)(dev, &mut v) == 0 && v > 0 {
+                reading.power_limit = Some(v as f64 / 1000.0);
             }
             if (self.fan)(dev, &mut v) == 0 {
                 reading.fan_percent = Some(v as f64);

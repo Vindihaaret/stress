@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Stress\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-29 18:43+0100\n"
+"POT-Creation-Date: 2026-10-29 19:17+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -45,7 +45,7 @@ msgstr ""
 msgid "Start a Test"
 msgstr ""
 
-#: src/tray.rs:91 src/ui.rs:253
+#: src/tray.rs:91 src/ui.rs:256
 msgid "Quit"
 msgstr ""
 
@@ -165,7 +165,7 @@ msgid ""
 "rule again in the preferences, and uninstalling Stress removes it too."
 msgstr ""
 
-#: src/ui/helpers.rs:44 src/ui.rs:832
+#: src/ui/helpers.rs:44 src/ui.rs:844
 msgid "Cancel"
 msgstr ""
 
@@ -227,286 +227,290 @@ msgstr ""
 msgid "Could not remove the system helpers: {}"
 msgstr ""
 
-#: src/ui.rs:31
+#: src/ui.rs:33
 msgid "Follow system"
 msgstr ""
 
-#: src/ui.rs:31
+#: src/ui.rs:33
 msgid "Light"
 msgstr ""
 
-#: src/ui.rs:31
+#: src/ui.rs:33
 msgid "Dark"
 msgstr ""
 
-#: src/ui.rs:250
+#: src/ui.rs:252
 msgid "Preferences"
 msgstr ""
 
-#: src/ui.rs:251
+#: src/ui.rs:253
+msgid "Check for Updates…"
+msgstr ""
+
+#: src/ui.rs:254
 msgid "About Stress"
 msgstr ""
 
-#: src/ui.rs:260
+#: src/ui.rs:263
 msgid "Main Menu"
 msgstr ""
 
-#: src/ui.rs:296
+#: src/ui.rs:299
 msgid "{} threads"
 msgstr ""
 
-#: src/ui.rs:297 src/ui.rs:311 src/ui.rs:352
+#: src/ui.rs:300 src/ui.rs:314 src/ui.rs:355
 msgid "Temperature"
 msgstr ""
 
-#: src/ui.rs:298 src/ui.rs:312
+#: src/ui.rs:301 src/ui.rs:315
 msgid "Utilization"
 msgstr ""
 
-#: src/ui.rs:300 src/ui.rs:314
+#: src/ui.rs:303 src/ui.rs:317
 msgid "Power"
 msgstr ""
 
-#: src/ui.rs:317 src/ui.rs:353
+#: src/ui.rs:320 src/ui.rs:356
 msgid "Fan"
 msgstr ""
 
-#: src/ui.rs:323
+#: src/ui.rs:326
 msgid "Graphics Cards"
 msgstr ""
 
-#: src/ui.rs:323
+#: src/ui.rs:326
 msgid "Other Graphics Cards"
 msgstr ""
 
-#: src/ui.rs:330
+#: src/ui.rs:333
 msgid "No graphics card found"
 msgstr ""
 
-#: src/ui.rs:337
+#: src/ui.rs:340
 msgid "The power supply updates its readings every few seconds."
 msgstr ""
 
-#: src/ui.rs:338
+#: src/ui.rs:341
 msgid "Output to the computer"
 msgstr ""
 
-#: src/ui.rs:340
+#: src/ui.rs:343
 msgid "From the wall"
 msgstr ""
 
-#: src/ui.rs:341
+#: src/ui.rs:344
 msgid ""
 "Calculated from the efficiency class; the power supply does not measure it."
 msgstr ""
 
-#: src/ui.rs:345
+#: src/ui.rs:348
 msgid "Rest of the computer"
 msgstr ""
 
-#: src/ui.rs:346
+#: src/ui.rs:349
 msgid ""
 "Motherboard, memory, disks and fans: the power supply's output minus the "
 "processor and graphics cards."
 msgstr ""
 
-#: src/ui.rs:350
+#: src/ui.rs:353 src/ui/update.rs:332
 msgid "Details"
 msgstr ""
 
-#: src/ui.rs:351
+#: src/ui.rs:354
 msgid "Input voltage"
 msgstr ""
 
-#: src/ui.rs:361
+#: src/ui.rs:364
 msgid "{} rail"
 msgstr ""
 
-#: src/ui.rs:515
+#: src/ui.rs:518
 msgid "Stress is still running"
 msgstr ""
 
-#: src/ui.rs:516
+#: src/ui.rs:519
 msgid ""
 "Stress is in the status icon, and a running test carries on. Quit from the "
 "icon."
 msgstr ""
 
-#: src/ui.rs:541
+#: src/ui.rs:544
 msgid "Processor: {}"
 msgstr ""
 
-#: src/ui.rs:548
+#: src/ui.rs:551
 msgid "Power supply: {}"
 msgstr ""
 
-#: src/ui.rs:587
+#: src/ui.rs:598
 msgid ""
 "Put the processor and graphics card under controlled load and watch "
 "temperatures, fans and power use."
 msgstr ""
 
 #. Translators: put your name(s) here to be credited in the About dialog.
-#: src/ui.rs:596
+#: src/ui.rs:607
 msgid "translator-credits"
 msgstr ""
 
-#: src/ui.rs:606
+#: src/ui.rs:617
 msgid "General"
 msgstr ""
 
-#: src/ui.rs:611
+#: src/ui.rs:622
 msgid "Appearance"
 msgstr ""
 
-#: src/ui.rs:614
+#: src/ui.rs:625
 msgid "Style"
 msgstr ""
 
-#: src/ui.rs:621
+#: src/ui.rs:632
 msgid "Window"
 msgstr ""
 
-#: src/ui.rs:624
+#: src/ui.rs:635
 msgid "Keep in the status icon when the window is closed"
 msgstr ""
 
-#: src/ui.rs:629
+#: src/ui.rs:640
 msgid ""
 "Instead of quitting. A running test carries on, and the icon shows its "
 "temperature."
 msgstr ""
 
-#: src/ui.rs:631
+#: src/ui.rs:642
 msgid "Needs a status icon area. On GNOME, install the AppIndicator extension."
 msgstr ""
 
-#: src/ui.rs:643
+#: src/ui.rs:654
 msgid "System default"
 msgstr ""
 
-#: src/ui.rs:651 src/ui.rs:655
+#: src/ui.rs:662 src/ui.rs:666
 msgid "Language"
 msgstr ""
 
-#: src/ui.rs:652
+#: src/ui.rs:663
 msgid "“System default” uses the language of your desktop."
 msgstr ""
 
-#: src/ui.rs:666
+#: src/ui.rs:678
 msgid "Uninstall Stress"
 msgstr ""
 
-#: src/ui.rs:667
+#: src/ui.rs:679
 msgid ""
 "Removes the program, its menu entry and the helpers it installed, and "
 "optionally the settings."
 msgstr ""
 
-#: src/ui.rs:670 src/ui.rs:832
+#: src/ui.rs:682 src/ui.rs:844
 msgid "Uninstall"
 msgstr ""
 
-#: src/ui.rs:717
+#: src/ui.rs:729
 msgid "Safety"
 msgstr ""
 
-#: src/ui.rs:722
+#: src/ui.rs:734
 msgid "Temperature Limits"
 msgstr ""
 
-#: src/ui.rs:723
+#: src/ui.rs:735
 msgid "A test stops by itself when a limit is reached."
 msgstr ""
 
-#: src/ui.rs:733
+#: src/ui.rs:745
 msgid "Processor"
 msgstr ""
 
-#: src/ui.rs:733 src/ui.rs:734
+#: src/ui.rs:745 src/ui.rs:746
 msgid "°C"
 msgstr ""
 
-#: src/ui.rs:734 src/ui/test.rs:318
+#: src/ui.rs:746 src/ui/test.rs:318
 msgid "Graphics card"
 msgstr ""
 
-#: src/ui.rs:739
+#: src/ui.rs:751
 msgid "Tests"
 msgstr ""
 
-#: src/ui.rs:741
+#: src/ui.rs:753
 msgid "Longest test"
 msgstr ""
 
-#: src/ui.rs:742
+#: src/ui.rs:754
 msgid "Minutes. Also applies to tests started without a duration."
 msgstr ""
 
-#: src/ui.rs:747
+#: src/ui.rs:759
 msgid "Stop when running on battery"
 msgstr ""
 
-#: src/ui.rs:755
+#: src/ui.rs:767
 msgid "Fan Control"
 msgstr ""
 
-#: src/ui.rs:760
+#: src/ui.rs:772
 msgid ""
 "Running. Tests also stop at {} °C, 5 °C below Vifte's emergency temperature, "
 "and whenever Vifte reports a problem."
 msgstr ""
 
-#: src/ui.rs:761
+#: src/ui.rs:773
 msgid "Running. Tests stop whenever Vifte reports a problem."
 msgstr ""
 
-#: src/ui.rs:765
+#: src/ui.rs:777
 msgid ""
 "Not running. When Vifte controls the fans, tests also respect its emergency "
 "temperature."
 msgstr ""
 
-#: src/ui.rs:819
+#: src/ui.rs:831
 msgid "Uninstall Stress?"
 msgstr ""
 
-#: src/ui.rs:820
+#: src/ui.rs:832
 msgid ""
 "The program, its entry in the app menu and the helpers it installed will be "
 "removed."
 msgstr ""
 
-#: src/ui.rs:822
+#: src/ui.rs:834
 msgid "Also delete the settings"
 msgstr ""
 
-#: src/ui.rs:824
+#: src/ui.rs:836
 msgid "Also remove the system helpers (needs the administrator password)"
 msgstr ""
 
-#: src/ui.rs:856
+#: src/ui.rs:868
 msgid "Uninstalling failed: {}"
 msgstr ""
 
-#: src/ui.rs:860
+#: src/ui.rs:872
 msgid ""
 "Stress and all its settings have been removed. The window will now close."
 msgstr ""
 
-#: src/ui.rs:862
+#: src/ui.rs:874
 msgid "Stress has been removed. The window will now close."
 msgstr ""
 
-#: src/ui.rs:864
+#: src/ui.rs:876
 msgid "Uninstalled"
 msgstr ""
 
-#: src/ui.rs:865
+#: src/ui.rs:877 src/ui/update.rs:345
 msgid "Close"
 msgstr ""
 
-#: src/ui.rs:879
+#: src/ui.rs:891
 msgid "drives the screen"
 msgstr ""
 
@@ -598,7 +602,7 @@ msgstr ""
 msgid "Stop"
 msgstr ""
 
-#: src/ui/test.rs:253
+#: src/ui/test.rs:253 src/ui/update.rs:316
 msgid "Starting…"
 msgstr ""
 
@@ -650,4 +654,116 @@ msgstr ""
 
 #: src/ui/test.rs:333
 msgid "Duration"
+msgstr ""
+
+#: src/ui/update.rs:212
+msgid "Could not check for updates"
+msgstr ""
+
+#: src/ui/update.rs:212 src/ui/update.rs:358
+msgid "Error: {}"
+msgstr ""
+
+#: src/ui/update.rs:225
+msgid "Stress is up to date"
+msgstr ""
+
+#: src/ui/update.rs:226
+msgid "You have the newest version ({})."
+msgstr ""
+
+#: src/ui/update.rs:239 src/ui/update.rs:260
+msgid "Stress {} is available"
+msgstr ""
+
+#: src/ui/update.rs:240
+msgid "Click to see what is new and update."
+msgstr ""
+
+#: src/ui/update.rs:249
+msgid "OK"
+msgstr ""
+
+#: src/ui/update.rs:255
+msgid "You have version {}."
+msgstr ""
+
+#: src/ui/update.rs:258
+msgid ""
+"Stress runs from a source folder. Update it with “git pull” and run "
+"install.sh."
+msgstr ""
+
+#: src/ui/update.rs:282
+msgid "Skip This Version"
+msgstr ""
+
+#: src/ui/update.rs:283 src/ui/update.rs:398
+msgid "Later"
+msgstr ""
+
+#: src/ui/update.rs:285
+msgid "Update Now"
+msgstr ""
+
+#: src/ui/update.rs:289
+msgid "Open GitHub"
+msgstr ""
+
+#: src/ui/update.rs:311
+msgid "Updating to Stress {}"
+msgstr ""
+
+#: src/ui/update.rs:312
+msgid ""
+"Downloading and installing the new version. If it has to be built on this "
+"computer, this takes a few minutes."
+msgstr ""
+
+#: src/ui/update.rs:358 src/ui/update.rs:386
+msgid "The update failed"
+msgstr ""
+
+#: src/ui/update.rs:387
+msgid "Stress was not changed. See the details below."
+msgstr ""
+
+#: src/ui/update.rs:395
+msgid "Stress {} is installed"
+msgstr ""
+
+#: src/ui/update.rs:396
+msgid "Restart Stress to use the new version."
+msgstr ""
+
+#: src/ui/update.rs:398
+msgid "Restart Now"
+msgstr ""
+
+#: src/ui/update.rs:429
+msgid "Updates"
+msgstr ""
+
+#: src/ui/update.rs:431
+msgid "Check for updates automatically"
+msgstr ""
+
+#: src/ui/update.rs:432
+msgid "Once a month, from GitHub"
+msgstr ""
+
+#: src/ui/update.rs:440
+msgid "never"
+msgstr ""
+
+#: src/ui/update.rs:442
+msgid "Check for updates now"
+msgstr ""
+
+#: src/ui/update.rs:443
+msgid "Version {} · last checked: {}"
+msgstr ""
+
+#: src/ui/update.rs:445
+msgid "Check"
 msgstr ""

@@ -61,8 +61,10 @@ pub enum Status {
 struct Running {
     cpu: Option<CpuLoad>,
     /// The worker and the load currently asked of it, which differs from the
-    /// target while the utilization is being steered.
+    /// target while the load is being steered.
     gpu: Option<(GpuLoad, f64)>,
+    /// Smoothed measured GPU load in percent, for steering.
+    gpu_measured: Option<f64>,
     levels: Levels,
     limits: Limits,
     started: Instant,
@@ -121,7 +123,7 @@ impl Controller {
             let cpu = (levels.cpu_load > 0 && levels.cpu_threads > 0)
                 .then(|| CpuLoad::start(levels.cpu_threads, levels.cpu_load));
             let started = Instant::now();
-            let running = Running { cpu, gpu, levels, limits, started, ends: started + duration };
+            let running = Running { cpu, gpu, gpu_measured: None, levels, limits, started, ends: started + duration };
             let mut state = this.state.lock().unwrap();
             if matches!(state.phase, Phase::Starting { cancelled: true }) {
                 state.phase = Phase::Idle;
@@ -225,9 +227,11 @@ impl Controller {
             self.finish(reason, ran);
             return Some(levels);
         }
-        if let (Some((worker, command)), Some(utilization)) = (&mut run.gpu, gpu.and_then(|g| g.utilization)) {
-            let target = levels.gpu_load as f64;
-            if let Some(next) = steer(target, *command, utilization) {
+        if let (Some((worker, command)), Some(measured)) = (&mut run.gpu, gpu.and_then(|g| g.utilization)) {
+            // The readings are noisy at low loads; steer on a smoothed value.
+            let smoothed = run.gpu_measured.map_or(measured, |m| m + SMOOTHING * (measured - m));
+            run.gpu_measured = Some(smoothed);
+            if let Some(next) = steer(levels.gpu_load as f64, *command, smoothed) {
                 *command = next;
                 worker.set(next.round() as u32);
             }
@@ -236,14 +240,28 @@ impl Controller {
     }
 }
 
+/// Weight of a new GPU reading in the smoothed value.
+const SMOOTHING: f64 = 0.4;
+/// Share of the remaining difference corrected each second.
+const GAIN: f64 = 0.3;
+/// Largest change of the GPU worker's load per second, in percentage points.
+const MAX_STEP: f64 = 5.0;
+
 /// Next load to ask of the GPU worker so the measured utilization approaches
-/// the target, or `None` to leave it. The duty cycle alone overshoots at low
-/// loads because the GPU also finishes queued work in its pauses.
-fn steer(target: f64, command: f64, utilization: f64) -> Option<f64> {
+/// the target, or `None` to leave it. Small, limited steps keep it from
+/// swinging around the target on noisy readings.
+///
+/// Utilization, not power, is steered: the driver picks the clocks from how
+/// busy the card is, with no stable middle ground (on an RTX 4080 a little
+/// above ~30 % busy jumps to full clocks and ~200 W, a little below drops to
+/// ~20 W), so steering toward a power level only chases those jumps. Low
+/// loads therefore heat little, as light programs do.
+fn steer(target: f64, command: f64, measured: f64) -> Option<f64> {
     if target <= 0.0 || target >= 100.0 {
         return None;
     }
-    let next = (command + 0.5 * (target - utilization)).clamp(1.0, 100.0);
+    let step = (GAIN * (target - measured)).clamp(-MAX_STEP, MAX_STEP);
+    let next = (command + step).clamp(1.0, 100.0);
     ((next - command).abs() >= 0.5).then_some(next)
 }
 
@@ -268,10 +286,12 @@ mod tests {
 
     #[test]
     fn steering_moves_toward_the_target() {
-        assert_eq!(steer(60.0, 60.0, 68.0), Some(56.0));
-        assert_eq!(steer(60.0, 56.0, 54.0), Some(59.0));
-        assert_eq!(steer(60.0, 60.0, 60.2), None);
+        assert_eq!(steer(60.0, 60.0, 68.0), Some(57.6));
+        assert_eq!(steer(60.0, 57.6, 54.0), Some(59.4));
+        assert_eq!(steer(60.0, 60.0, 61.0), None);
         assert_eq!(steer(100.0, 100.0, 95.0), None);
+        // Large differences are taken in limited steps.
+        assert_eq!(steer(25.0, 25.0, 90.0), Some(20.0));
         assert_eq!(steer(5.0, 2.0, 40.0), Some(1.0));
     }
 }
