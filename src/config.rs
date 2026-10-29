@@ -37,6 +37,9 @@ pub struct Config {
     /// Let Claude (through `stresstest mcp`) read the sensors and run tests.
     /// Off until the user turns it on.
     pub claude_control: bool,
+    /// Closing the window keeps Stress in the status icon instead of quitting,
+    /// and a running test carries on.
+    pub close_to_tray: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -63,6 +66,7 @@ impl Default for Config {
             gpu_load: 100,
             duration_minutes: 10,
             claude_control: false,
+            close_to_tray: false,
         }
     }
 }

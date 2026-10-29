@@ -9,13 +9,11 @@ PREFIX="${PREFIX:-$HOME/.local}"
 APP_ID=io.github.stresstest.Stress
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/stresstest"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/stresstest"
-AUTOSTART="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/$APP_ID.desktop"
 
 rm -fv "$PREFIX/bin/stresstest" \
        "$PREFIX/share/applications/$APP_ID.desktop" \
        "$PREFIX/share/icons/hicolor/scalable/apps/$APP_ID.svg" \
-       "$PREFIX/share/icons/hicolor/symbolic/apps/$APP_ID-symbolic.svg" \
-       "$AUTOSTART"
+       "$PREFIX/share/icons/hicolor/symbolic/apps/$APP_ID-symbolic.svg"
 
 rm -rf "$CACHE_DIR"
 

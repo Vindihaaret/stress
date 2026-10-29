@@ -11,6 +11,7 @@ mod loadtest;
 mod mcp;
 mod nvml;
 mod sensors;
+mod tray;
 mod ui;
 mod uninstall;
 mod vifte;
@@ -42,6 +43,7 @@ fn main() -> std::process::ExitCode {
         gtk::Window::set_default_icon_name(APP_ID);
         ui::load_css();
         ui::apply_appearance(config.appearance);
+        ui::start_tray(app);
         ui::register_claude(app);
 
         let quit = gio::ActionEntry::builder("quit").activate(|app: &adw::Application, _, _| app.quit()).build();

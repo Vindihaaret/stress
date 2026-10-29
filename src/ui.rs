@@ -20,7 +20,7 @@ use crate::history::History;
 use crate::i18n::{self, n_, tr, trf};
 use crate::loadtest::Controller;
 use crate::sensors::{format, PsuReading, Sample, Sensors};
-use crate::APP_ID;
+use crate::{tray, APP_ID};
 use graph::{Card, Scale};
 use test::TestControls;
 
@@ -73,6 +73,44 @@ thread_local! {
     /// opening another one.
     static CURRENT: RefCell<std::rc::Weak<App>> = const { RefCell::new(std::rc::Weak::new()) };
     static MACHINE: OnceCell<Rc<Machine>> = const { OnceCell::new() };
+    /// The status icon belongs to the application, not to a window, so it
+    /// survives the window being rebuilt for a language change.
+    static TRAY: RefCell<Option<ksni::blocking::Handle<tray::StressTray>>> = const { RefCell::new(None) };
+}
+
+fn has_tray() -> bool {
+    TRAY.with(|tray| tray.borrow().is_some())
+}
+
+/// Starts the status icon and routes its menu commands to the current window.
+pub fn start_tray(application: &adw::Application) {
+    let (tx, rx) = async_channel::unbounded();
+    let Some(handle) = tray::spawn(tx) else { return };
+    TRAY.with(|tray| *tray.borrow_mut() = Some(handle));
+    let application = application.downgrade();
+    glib::spawn_future_local(async move {
+        while let Ok(command) = rx.recv().await {
+            let Some(application) = application.upgrade() else { break };
+            let app = CURRENT.with(|current| current.borrow().upgrade());
+            match (command, app) {
+                (tray::Command::Quit, Some(app)) => {
+                    app.force_close();
+                    application.quit();
+                }
+                (tray::Command::Quit, None) => application.quit(),
+                (tray::Command::Show, Some(app)) => app.window.present(),
+                (tray::Command::Show, None) => application.activate(),
+                (tray::Command::StartStop, Some(app)) => {
+                    match app.machine.controller.status() {
+                        crate::loadtest::Status::Idle => app.start_test(),
+                        _ => app.machine.controller.stop(),
+                    }
+                    app.update_test_status();
+                }
+                (tray::Command::StartStop, None) => {}
+            }
+        }
+    });
 }
 
 fn machine() -> Rc<Machine> {
@@ -134,6 +172,13 @@ pub struct App {
     /// The window is being replaced for a language change; a running test
     /// carries on.
     rebuilding: Cell<bool>,
+    /// The window closes for real, also when it would otherwise go to the
+    /// status icon.
+    closing: Cell<bool>,
+    /// "Still running" was already shown once for closing to the status icon.
+    hidden_notice_shown: Cell<bool>,
+    /// Last state pushed to the status icon, to avoid needless D-Bus updates.
+    tray_state: RefCell<Option<tray::State>>,
     config: RefCell<Config>,
     machine: Rc<Machine>,
     readings: Vec<Reading>,
@@ -345,6 +390,9 @@ impl App {
             last_test: RefCell::new(None),
             claude_started: Cell::new(false),
             rebuilding: Cell::new(false),
+            closing: Cell::new(false),
+            hidden_notice_shown: Cell::new(false),
+            tray_state: RefCell::new(None),
             config: RefCell::new(config),
             machine,
             readings,
@@ -368,8 +416,12 @@ impl App {
         });
         *app.refresh_source.borrow_mut() = Some(source);
         let weak = Rc::downgrade(&app);
-        app.window.connect_close_request(move |_| {
+        app.window.connect_close_request(move |window| {
             let Some(app) = weak.upgrade() else { return glib::Propagation::Proceed };
+            if !app.closing.get() && !app.rebuilding.get() && app.config.borrow().close_to_tray && has_tray() {
+                app.hide_to_tray(window);
+                return glib::Propagation::Stop;
+            }
             if let Some(source) = app.refresh_source.take() {
                 source.remove();
             }
@@ -405,6 +457,7 @@ impl App {
                 }
             }
             let window = app.window.clone();
+            let weak = Rc::downgrade(&app);
             glib::timeout_add_local_once(Duration::from_millis(1500), move || {
                 let paintable = gtk::WidgetPaintable::new(Some(&window));
                 let snapshot = gtk::Snapshot::new();
@@ -419,13 +472,16 @@ impl App {
                         eprintln!("screenshot: node={} renderer={}", node.is_some(), renderer.is_some())
                     }
                 }
-                window.close();
+                if let Some(app) = weak.upgrade() {
+                    app.force_close();
+                }
             });
         });
     }
 
     fn tick(&self) {
         self.update_test_status();
+        self.sync_tray();
         let history = &self.machine.history;
         let tests = history.test_periods();
         for reading in &self.readings {
@@ -438,8 +494,69 @@ impl App {
         }
     }
 
+    /// Shows a message: a toast in the window, or a desktop notification
+    /// while the window is hidden in the status icon.
     fn toast(&self, message: &str) {
-        self.toasts.add_toast(adw::Toast::new(message));
+        if self.window.is_visible() {
+            self.toasts.add_toast(adw::Toast::new(message));
+        } else if let Some(application) = self.window.application() {
+            let notification = gio::Notification::new("Stress");
+            notification.set_body(Some(message));
+            application.send_notification(Some("stress"), &notification);
+        }
+    }
+
+    fn hide_to_tray(&self, window: &adw::ApplicationWindow) {
+        window.set_visible(false);
+        if self.hidden_notice_shown.replace(true) {
+            return;
+        }
+        if let Some(application) = window.application() {
+            let notification = gio::Notification::new(tr("Stress is still running"));
+            notification.set_body(Some(tr("Stress is in the status icon, and a running test carries on. Quit from the icon.")));
+            application.send_notification(Some("background"), &notification);
+        }
+    }
+
+    /// Closes the window for real, also when it would go to the status icon.
+    fn force_close(&self) {
+        self.closing.set(true);
+        self.window.close();
+    }
+
+    /// Pushes the test state and readings to the status icon.
+    fn sync_tray(&self) {
+        if !has_tray() {
+            return;
+        }
+        let machine = &self.machine;
+        let Some(sample) = machine.history.latest() else { return };
+        let levels = match machine.controller.status() {
+            crate::loadtest::Status::Running { levels, .. } => Some(levels),
+            _ => None,
+        };
+        let gpu_temperature = levels.and_then(|l| l.gpu).and_then(|i| sample.gpus.get(i)).and_then(|g| g.temperature);
+        let cpu_temperature = levels.filter(|l| l.cpu_load > 0).and(sample.cpu_temperature);
+        let hottest = [cpu_temperature, gpu_temperature].into_iter().flatten().reduce(f64::max);
+        let mut lines = vec![trf("Processor: {}", &[&[format(sample.cpu_temperature, "°C", 0), format(sample.cpu_power, "W", 0)].join(" · ")])];
+        for (gpu, reading) in machine.gpus.iter().zip(&sample.gpus) {
+            if gpu.unavailable_reason().is_none() {
+                lines.push(format!("{}: {}", gpu.name, [format(reading.temperature, "°C", 0), format(reading.power, "W", 0)].join(" · ")));
+            }
+        }
+        if let Some(psu) = &sample.psu {
+            lines.push(trf("Power supply: {}", &[&format(Some(psu.output), "W", 0)]));
+        }
+        let state = tray::State { running: levels.is_some(), hottest, summary: lines.join("\n") };
+        if self.tray_state.borrow().as_ref() == Some(&state) {
+            return;
+        }
+        *self.tray_state.borrow_mut() = Some(state.clone());
+        TRAY.with(|tray| {
+            if let Some(handle) = tray.borrow().as_ref() {
+                handle.update(|tray| tray.state = state);
+            }
+        });
     }
 
     fn install_actions(self: &Rc<Self>) {
@@ -500,6 +617,27 @@ impl App {
             .build();
         look.add(&style);
         page.add(&look);
+
+        let behaviour = adw::PreferencesGroup::builder().title(tr("Window")).build();
+        let tray_available = has_tray();
+        let on_close = adw::SwitchRow::builder()
+            .title(tr("Keep in the status icon when the window is closed"))
+            .active(self.config.borrow().close_to_tray && tray_available)
+            .sensitive(tray_available)
+            .build();
+        on_close.set_subtitle(if tray_available {
+            tr("Instead of quitting. A running test carries on, and the icon shows its temperature.")
+        } else {
+            tr("Needs a status icon area. On GNOME, install the AppIndicator extension.")
+        });
+        behaviour.add(&on_close);
+        page.add(&behaviour);
+        let weak = Rc::downgrade(self);
+        on_close.connect_active_notify(move |row| {
+            let Some(app) = weak.upgrade() else { return };
+            app.config.borrow_mut().close_to_tray = row.is_active();
+            app.config.borrow().save();
+        });
 
         let languages = i18n::available_languages();
         let mut labels = vec![tr("System default")];
@@ -725,8 +863,12 @@ impl App {
         };
         let done = adw::AlertDialog::new(Some(tr("Uninstalled")), Some(body));
         done.add_response("close", tr("Close"));
-        let window = self.window.clone();
-        done.connect_response(None, move |_, _| window.close());
+        let weak = Rc::downgrade(self);
+        done.connect_response(None, move |_, _| {
+            if let Some(app) = weak.upgrade() {
+                app.force_close();
+            }
+        });
         done.present(Some(&self.window));
     }
 }
