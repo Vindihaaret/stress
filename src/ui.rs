@@ -1,10 +1,11 @@
-//! Main window: a section per device (processor, each graphics card, the
-//! power supply) with reading cards that graph the last 30 minutes, plus
-//! preferences, about and uninstalling.
+//! Main window: the load test panel, then a section per device (processor,
+//! each graphics card, the power supply) with reading cards that graph the
+//! last 30 minutes, plus preferences, about and uninstalling.
 
 mod graph;
+mod test;
 
-use std::cell::{OnceCell, RefCell};
+use std::cell::{Cell, OnceCell, RefCell};
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -15,9 +16,11 @@ use crate::config::{self, Appearance, Config};
 use crate::devices::{self, Gpu};
 use crate::history::History;
 use crate::i18n::{self, n_, tr, trf};
+use crate::loadtest::Controller;
 use crate::sensors::{format, PsuReading, Sample, Sensors};
 use crate::APP_ID;
 use graph::{Card, Scale};
+use test::TestControls;
 
 const REFRESH_INTERVAL: Duration = Duration::from_secs(1);
 const APPEARANCES: [Appearance; 3] = [Appearance::System, Appearance::Light, Appearance::Dark];
@@ -56,6 +59,7 @@ struct Machine {
     cpu: devices::Cpu,
     gpus: Vec<Gpu>,
     history: History,
+    controller: Controller,
     rapl_denied: bool,
     /// Taken before the history starts, to know which readings exist.
     first: Sample,
@@ -76,7 +80,10 @@ fn machine() -> Rc<Machine> {
                 let gpus = devices::gpus();
                 let mut sensors = Sensors::new(&gpus);
                 let first = sensors.sample();
-                Rc::new(Machine { cpu, gpus, rapl_denied: sensors.rapl_denied, first, history: History::start(sensors) })
+                let controller = Controller::new(gpus.iter().map(|g| g.pci.clone()).collect());
+                let rapl_denied = sensors.rapl_denied;
+                let history = History::start(sensors, controller.clone());
+                Rc::new(Machine { cpu, gpus, history, controller, rapl_denied, first })
             })
             .clone()
     })
@@ -115,7 +122,14 @@ struct PsuLabels {
 
 pub struct App {
     window: adw::ApplicationWindow,
+    title: adw::WindowTitle,
     toasts: adw::ToastOverlay,
+    test: TestControls,
+    /// How the last test ended, shown under the panel.
+    last_test: RefCell<Option<String>>,
+    /// The window is being replaced for a language change; a running test
+    /// carries on.
+    rebuilding: Cell<bool>,
     config: RefCell<Config>,
     machine: Rc<Machine>,
     readings: Vec<Reading>,
@@ -180,7 +194,9 @@ impl App {
             .height_request(400)
             .build();
 
+        let title = adw::WindowTitle::new("Stress", "");
         let header = adw::HeaderBar::new();
+        header.set_title_widget(Some(&title));
         let menu = gio::Menu::new();
         menu.append(Some(tr("Preferences")), Some("win.preferences"));
         menu.append(Some(tr("About Stress")), Some("win.about"));
@@ -213,6 +229,16 @@ impl App {
             readings.push(Reading { card, value });
         };
         let first = &machine.first;
+
+        let loadable: Vec<(usize, String, String)> = machine
+            .gpus
+            .iter()
+            .enumerate()
+            .filter(|(_, g)| g.unavailable_reason().is_none())
+            .map(|(i, g)| (i, g.name.clone(), g.pci.clone()))
+            .collect();
+        let test = TestControls::new(&config, machine.cpu.threads, &loadable);
+        content.append(&test.group);
 
         // Processor.
         let cpu = section(&content, &machine.cpu.model, &trf("{} threads", &[&machine.cpu.threads]));
@@ -315,7 +341,11 @@ impl App {
 
         let app = Rc::new(App {
             window,
+            title,
             toasts,
+            test,
+            last_test: RefCell::new(None),
+            rebuilding: Cell::new(false),
             config: RefCell::new(config),
             machine,
             readings,
@@ -324,6 +354,7 @@ impl App {
         });
         CURRENT.with(|current| *current.borrow_mut() = Rc::downgrade(&app));
         app.install_actions();
+        app.build_test_panel();
         app.tick();
 
         // Holds the app alive; removed when the window closes.
@@ -335,13 +366,22 @@ impl App {
         *app.refresh_source.borrow_mut() = Some(source);
         let weak = Rc::downgrade(&app);
         app.window.connect_close_request(move |_| {
-            if let Some(source) = weak.upgrade().and_then(|app| app.refresh_source.take()) {
+            let Some(app) = weak.upgrade() else { return glib::Propagation::Proceed };
+            if let Some(source) = app.refresh_source.take() {
                 source.remove();
+            }
+            if !app.rebuilding.get() {
+                app.machine.controller.stop();
             }
             glib::Propagation::Proceed
         });
         if let Ok(path) = std::env::var("STRESS_SCREENSHOT") {
-            app.schedule_screenshot(path, std::env::var("STRESS_PAGE").ok());
+            let page = std::env::var("STRESS_PAGE").ok();
+            // Starts a test right away with the saved setup, to capture it running.
+            if page.as_deref() == Some("start") {
+                app.start_test();
+            }
+            app.schedule_screenshot(path, page);
         }
         app
     }
@@ -382,11 +422,13 @@ impl App {
     }
 
     fn tick(&self) {
+        self.update_test_status();
         let history = &self.machine.history;
+        let tests = history.test_periods();
         for reading in &self.readings {
             let points = history.series(&reading.value);
             let current = points.last().and_then(|(_, v)| *v);
-            reading.card.set(current, points);
+            reading.card.set(current, points, tests.clone());
         }
         if let (Some(labels), Some(reading)) = (&self.psu, history.latest().and_then(|s| s.psu)) {
             show_psu(labels, &reading);
@@ -608,6 +650,7 @@ impl App {
         };
         // Keep the application running between closing this window and opening the new one.
         let _hold = application.hold();
+        self.rebuilding.set(true);
         self.window.close();
         App::new(&application, Some(carry)).window.present();
     }

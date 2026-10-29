@@ -106,15 +106,13 @@ pub fn loadable() -> Vec<String> {
 // ---------------------------------------------------------------- worker side
 
 /// Entry point of `stresstest gpu-worker <pci>`. Protocol on stdin: `load N`
-/// and `quit`; end of input (the app is gone) also stops.
+/// and `quit`; end of input also stops. The worker also stops when Stress
+/// itself is gone (it is then adopted by another process). PR_SET_PDEATHSIG
+/// is not used: it fires when the starting *thread* ends, and the app starts
+/// workers from short-lived threads.
 pub fn worker_main(pci: &str) -> i32 {
-    unsafe {
-        let parent = libc::getppid();
-        libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL);
-        if libc::getppid() != parent {
-            return 1;
-        }
-    }
+    let parent = unsafe { libc::getppid() };
+    let orphaned = move || unsafe { libc::getppid() } != parent;
     let gl = match Context::open(pci) {
         Ok(gl) => gl,
         Err(e) => {
@@ -144,7 +142,7 @@ pub fn worker_main(pci: &str) -> i32 {
 
     let mut iterations = gl.calibrate();
     let mut seed = 0.0f32;
-    while !stop.load(Ordering::Relaxed) {
+    while !stop.load(Ordering::Relaxed) && !orphaned() {
         let start = Instant::now();
         let percent = load.load(Ordering::Relaxed).min(100);
         if percent == 0 {

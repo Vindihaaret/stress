@@ -6,6 +6,7 @@ mod dl;
 mod gpuload;
 mod history;
 mod i18n;
+mod loadtest;
 mod nvml;
 mod sensors;
 mod ui;

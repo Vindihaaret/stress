@@ -1,5 +1,5 @@
-//! Persistent settings: appearance, language and the safety limits, stored as
-//! JSON in ~/.config/stresstest/config.json.
+//! Persistent settings: appearance, language, the safety limits and the last
+//! test setup, stored as JSON in ~/.config/stresstest/config.json.
 
 use std::fs;
 use std::path::PathBuf;
@@ -26,6 +26,14 @@ pub struct Config {
     pub max_minutes: f64,
     /// Stop a test when the computer switches to battery power.
     pub stop_on_battery: bool,
+    /// Processor threads to load; `None` for all.
+    pub cpu_threads: Option<usize>,
+    pub cpu_load: u32,
+    /// PCI address of the graphics card to load; `None` for none.
+    pub gpu: Option<String>,
+    pub gpu_load: u32,
+    /// Test length; 0 runs until stopped (at most `max_minutes`).
+    pub duration_minutes: u32,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -46,6 +54,11 @@ impl Default for Config {
             gpu_limit: 90.0,
             max_minutes: 60.0,
             stop_on_battery: true,
+            cpu_threads: None,
+            cpu_load: 100,
+            gpu: None,
+            gpu_load: 100,
+            duration_minutes: 10,
         }
     }
 }
@@ -63,6 +76,8 @@ impl Config {
         config.cpu_limit = config.cpu_limit.clamp(CPU_LIMIT_RANGE.0, CPU_LIMIT_RANGE.1);
         config.gpu_limit = config.gpu_limit.clamp(GPU_LIMIT_RANGE.0, GPU_LIMIT_RANGE.1);
         config.max_minutes = config.max_minutes.clamp(MAX_MINUTES_RANGE.0, MAX_MINUTES_RANGE.1);
+        config.cpu_load = config.cpu_load.min(100);
+        config.gpu_load = config.gpu_load.min(100);
         config
     }
 

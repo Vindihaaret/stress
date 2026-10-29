@@ -23,6 +23,8 @@ const MIN_SPAN: Duration = Duration::from_secs(120);
 #[derive(Default)]
 struct Data {
     points: Points,
+    /// When a load test ran, as (started, ended) in seconds ago.
+    tests: Vec<(f64, f64)>,
     /// Seconds shown across the width.
     span: f64,
 }
@@ -72,7 +74,7 @@ impl Card {
         let shared = data.clone();
         area.set_draw_func(move |area, cr, w, h| {
             let data = shared.borrow();
-            draw(area, cr, w as f64, h as f64, &data.points, data.span, scale)
+            draw(area, cr, w as f64, h as f64, &data, scale)
         });
         widget.append(&area);
         let range = gtk::Label::builder()
@@ -83,7 +85,7 @@ impl Card {
         Card { widget, value, range, area, data, unit, decimals, prefix }
     }
 
-    pub fn set(&self, current: Option<f64>, points: Points) {
+    pub fn set(&self, current: Option<f64>, points: Points, tests: Vec<(f64, f64)>) {
         self.value.set_label(&match current {
             Some(_) => format!("{}{}", self.prefix, format(current, self.unit, self.decimals)),
             None => "–".into(),
@@ -101,19 +103,30 @@ impl Card {
         } else {
             String::new()
         });
-        *self.data.borrow_mut() = Data { points, span };
+        *self.data.borrow_mut() = Data { points, tests, span };
         self.area.queue_draw();
     }
 }
 
 #[allow(deprecated)] // lookup_color has no replacement that works with libadwaita 1.5.
-fn accent(widget: &gtk::DrawingArea) -> gdk::RGBA {
-    widget.style_context().lookup_color("accent_color").unwrap_or(gdk::RGBA::new(0.2, 0.5, 0.9, 1.0))
+fn named_color(widget: &gtk::DrawingArea, name: &str, fallback: gdk::RGBA) -> gdk::RGBA {
+    widget.style_context().lookup_color(name).unwrap_or(fallback)
 }
 
-fn draw(area: &gtk::DrawingArea, cr: &cairo::Context, w: f64, h: f64, points: &[(f64, Option<f64>)], span: f64, scale: Scale) {
+fn draw(area: &gtk::DrawingArea, cr: &cairo::Context, w: f64, h: f64, data: &Data, scale: Scale) {
     let fg = area.color();
-    let span = span.max(1.0);
+    let span = data.span.max(1.0);
+    let points = &data.points;
+
+    // Load tests as a tinted band behind the graph.
+    let warning = named_color(area, "warning_color", gdk::RGBA::new(0.9, 0.6, 0.1, 1.0));
+    cr.set_source_rgba(warning.red() as f64, warning.green() as f64, warning.blue() as f64, 0.12);
+    for &(from, to) in &data.tests {
+        let (x0, x1) = (w * (1.0 - from.min(span) / span), w * (1.0 - to / span));
+        cr.rectangle(x0, 0.0, (x1 - x0).max(1.0), h);
+    }
+    let _ = cr.fill();
+
     // Faint guides at whole minutes: every minute, 5 or 10 minutes.
     let step = if span <= 300.0 { 60.0 } else if span <= 900.0 { 300.0 } else { 600.0 };
     cr.set_source_rgba(fg.red() as f64, fg.green() as f64, fg.blue() as f64, 0.08);
@@ -146,7 +159,7 @@ fn draw(area: &gtk::DrawingArea, cr: &cairo::Context, w: f64, h: f64, points: &[
     // Split into runs at missing readings and at gaps (the computer slept).
     let mut runs: Vec<Vec<(f64, f64)>> = Vec::new();
     let mut last_ago = f64::INFINITY;
-    for &(ago, value) in points {
+    for &(ago, value) in points.iter() {
         match value {
             Some(v) if last_ago - ago < 3.0 && !runs.is_empty() => runs.last_mut().unwrap().push(xy(ago, v)),
             Some(v) => runs.push(vec![xy(ago, v)]),
@@ -157,7 +170,7 @@ fn draw(area: &gtk::DrawingArea, cr: &cairo::Context, w: f64, h: f64, points: &[
         }
     }
 
-    let accent = accent(area);
+    let accent = named_color(area, "accent_color", gdk::RGBA::new(0.2, 0.5, 0.9, 1.0));
     let (r, g, b) = (accent.red() as f64, accent.green() as f64, accent.blue() as f64);
     for run in runs {
         let (first, last) = (run[0], run[run.len() - 1]);
