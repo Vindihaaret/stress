@@ -86,4 +86,16 @@ impl History {
         }
         periods
     }
+
+    /// Entries from the last `within`, as (seconds ago, sample, load), oldest first.
+    pub fn recent(&self, within: Duration) -> Vec<(f64, Sample, Option<Levels>)> {
+        let now = Instant::now();
+        self.0
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|e| now.duration_since(e.at) <= within)
+            .map(|e| (now.duration_since(e.at).as_secs_f64(), e.sample.clone(), e.load))
+            .collect()
+    }
 }

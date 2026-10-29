@@ -8,10 +8,12 @@ mod helpers;
 mod history;
 mod i18n;
 mod loadtest;
+mod mcp;
 mod nvml;
 mod sensors;
 mod ui;
 mod uninstall;
+mod vifte;
 
 use adw::prelude::*;
 use gtk::{gio, glib};
@@ -20,6 +22,9 @@ pub const APP_ID: &str = "io.github.stresstest.Stress";
 
 fn main() -> std::process::ExitCode {
     let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("mcp") {
+        return mcp::run();
+    }
     if let Some(code) = cli::run_command(&args[1..]) {
         return code;
     }
@@ -37,6 +42,7 @@ fn main() -> std::process::ExitCode {
         gtk::Window::set_default_icon_name(APP_ID);
         ui::load_css();
         ui::apply_appearance(config.appearance);
+        ui::register_claude(app);
 
         let quit = gio::ActionEntry::builder("quit").activate(|app: &adw::Application, _, _| app.quit()).build();
         app.add_action_entries([quit]);

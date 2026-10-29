@@ -86,6 +86,9 @@ pub fn reason_text(finished: &Finished) -> String {
         StopReason::Battery => trf("Stopped after {}: the computer is running on battery", &[&ran]),
         StopReason::WorkerStopped => trf("Stopped after {}: the graphics card load ended unexpectedly", &[&ran]),
         StopReason::Failed(message) => trf("Could not start: {}", &[message]),
+        StopReason::VifteEmergency => trf("Stopped after {}: Vifte switched to emergency mode", &[&ran]),
+        StopReason::VifteSensorLost => trf("Stopped after {}: Vifte lost a fan curve's temperature sensor", &[&ran]),
+        StopReason::ViftePaused => trf("Stopped after {}: Vifte's fan control is paused", &[&ran]),
     }
 }
 
@@ -94,7 +97,7 @@ impl App {
         let t = &self.test;
         let weak = Rc::downgrade(self);
         let changed = move || {
-            if let Some(app) = weak.upgrade() {
+            if let Some(app) = weak.upgrade().filter(|app| !app.test.updating.get()) {
                 app.test_changed();
             }
         };
@@ -167,17 +170,42 @@ impl App {
             config.duration_minutes = DURATIONS[(t.duration.selected() as usize).min(DURATIONS.len() - 1)];
             config.save();
         }
-        if !t.updating.get() {
-            let profile = PROFILES
-                .iter()
-                .position(|&(_, cpu, gpu)| all_threads && cpu == levels.cpu_load && gpu == t.gpu_load.value() as u32)
-                .map_or(0, |i| i + 1);
-            t.updating.set(true);
-            t.profile.set_selected(profile as u32);
-            t.updating.set(false);
-        }
+        self.sync_profile();
         self.machine.controller.set_levels(levels.cpu_threads, levels.cpu_load, levels.gpu_load);
         self.update_test_status();
+    }
+
+    /// Shows the profile that matches the panel, or "Custom".
+    fn sync_profile(&self) {
+        let t = &self.test;
+        let all_threads = t.threads.value() as usize == t.threads.adjustment().upper() as usize;
+        let (cpu_load, gpu_load) = (t.cpu_load.value() as u32, t.gpu_load.value() as u32);
+        let profile = PROFILES
+            .iter()
+            .position(|&(_, cpu, gpu)| all_threads && cpu == cpu_load && gpu == gpu_load)
+            .map_or(0, |i| i + 1);
+        let updating = t.updating.replace(true);
+        t.profile.set_selected(profile as u32);
+        t.updating.set(updating);
+    }
+
+    /// Shows levels set by Claude in the panel, without saving them as the
+    /// user's own setup.
+    pub(super) fn show_levels(&self, levels: &Levels) {
+        let t = &self.test;
+        t.updating.set(true);
+        t.threads.set_value(levels.cpu_threads as f64);
+        t.cpu_load.set_value(levels.cpu_load as f64);
+        if let Some(row) = &t.gpu {
+            let position = levels.gpu.and_then(|g| t.usable.iter().position(|&i| i == g)).unwrap_or(t.usable.len());
+            row.set_selected(position as u32);
+        }
+        if levels.gpu.is_some() {
+            t.gpu_load.set_value(levels.gpu_load as f64);
+        }
+        t.gpu_load_row.set_sensitive(levels.gpu.is_some());
+        self.sync_profile();
+        t.updating.set(false);
     }
 
     pub(super) fn start_test(&self) {
@@ -206,7 +234,8 @@ impl App {
             if finished.reason != StopReason::User {
                 self.toast(&text);
             }
-            *self.last_test.borrow_mut() = Some(text);
+            *self.last_test.borrow_mut() = Some((text, finished));
+            self.claude_started.set(false);
         }
         let status = controller.status();
         let idle = matches!(status, Status::Idle);
@@ -218,7 +247,7 @@ impl App {
                 tr("Start"),
                 "suggested-action",
                 tr("Ready"),
-                self.last_test.borrow().clone().unwrap_or_default(),
+                self.last_test.borrow().as_ref().map(|(text, _)| text.clone()).unwrap_or_default(),
                 None,
             ),
             Status::Starting => (tr("Stop"), "destructive-action", tr("Starting…"), String::new(), Some(0.0)),
@@ -228,7 +257,7 @@ impl App {
                 (
                     tr("Stop"),
                     "destructive-action",
-                    tr("Running"),
+                    if self.claude_started.get() { tr("Running, started by Claude") } else { tr("Running") },
                     trf("{} of {}", &[&clock(elapsed), &clock(total)]),
                     Some(elapsed.as_secs_f64() / total.as_secs_f64().max(1.0)),
                 )

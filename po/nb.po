@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Stress\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-29 18:27+0100\n"
+"POT-Creation-Date: 2026-10-29 18:34+0100\n"
 "PO-Revision-Date: 2026-10-29 18:00+0100\n"
 "Last-Translator: \n"
 "Language-Team: Norwegian Bokmål\n"
@@ -22,6 +22,94 @@ msgstr "Ingen driver er aktiv"
 #: src/devices.rs:56
 msgid "The {} driver offers no graphics device for it"
 msgstr "Driveren {} gir ingen grafikkenhet for det"
+
+#: src/ui/claude.rs:321
+msgid "Claude started a load test"
+msgstr "Claude startet en lasttest"
+
+#: src/ui/claude.rs:359
+msgid "Claude changed the load"
+msgstr "Claude endret lasten"
+
+#: src/ui/claude.rs:372
+msgid "Claude stopped the test"
+msgstr "Claude stoppet testen"
+
+#: src/ui/claude.rs:379
+msgid "Claude"
+msgstr "Claude"
+
+#: src/ui/claude.rs:384
+msgid "Claude Integration (MCP)"
+msgstr "Claude-integrasjon (MCP)"
+
+#: src/ui/claude.rs:385
+msgid ""
+"Lets Claude, in Claude Code or Claude Desktop, read the sensors and start, "
+"change and stop load tests, for example to tune fan curves together with "
+"Vifte. Everything is off until you turn it on here, and you can turn it off "
+"at any time."
+msgstr "Lar Claude, i Claude Code eller Claude Desktop, lese sensorene og starte, endre og stoppe lasttester, for eksempel for å finjustere viftekurver sammen med Vifte. Alt er av til du slår det på her, og du kan slå det av når som helst."
+
+#: src/ui/claude.rs:388
+msgid "Allow Claude to run load tests"
+msgstr "La Claude kjøre lasttester"
+
+#: src/ui/claude.rs:389
+msgid ""
+"Your temperature limits and longest test always apply; Claude can only make "
+"the limits stricter."
+msgstr "Temperaturgrensene og lengste test gjelder alltid; Claude kan bare gjøre grensene strengere."
+
+#: src/ui/claude.rs:396
+msgid "Connect Claude"
+msgstr "Koble til Claude"
+
+#: src/ui/claude.rs:397
+msgid ""
+"Start a new Claude session after connecting, then ask for example “Test how "
+"warm my computer gets under full load”."
+msgstr "Start en ny Claude-økt etter tilkoblingen, og spør for eksempel «Test hvor varm maskinen min blir under full last»."
+
+#: src/ui/claude.rs:400
+msgid "Claude Code"
+msgstr "Claude Code"
+
+#: src/ui/claude.rs:405
+msgid "Add"
+msgstr "Legg til"
+
+#: src/ui/claude.rs:408 src/ui/claude.rs:420
+msgid "Copy"
+msgstr "Kopier"
+
+#: src/ui/claude.rs:415
+msgid "Claude Desktop"
+msgstr "Claude Desktop"
+
+#: src/ui/claude.rs:416
+msgid "Add this to claude_desktop_config.json"
+msgstr "Legg dette til i claude_desktop_config.json"
+
+#: src/ui/claude.rs:437
+msgid "Copied"
+msgstr "Kopiert"
+
+#: src/ui/claude.rs:451
+msgid "Could not run the claude command"
+msgstr "Kunne ikke kjøre claude-kommandoen"
+
+#: src/ui/claude.rs:460
+msgid "Stress was added to Claude Code"
+msgstr "Stress ble lagt til i Claude Code"
+
+#: src/ui/claude.rs:464
+msgid "Stress is already added to Claude Code"
+msgstr "Stress er allerede lagt til i Claude Code"
+
+#: src/ui/claude.rs:466 src/ui/claude.rs:469
+msgid "Could not add it: {}"
+msgstr "Kunne ikke legge det til: {}"
 
 #: src/ui/graph.rs:100
 msgid "Last {} min: {} – {}"
@@ -51,7 +139,7 @@ msgid ""
 "rule again in the preferences, and uninstalling Stress removes it too."
 msgstr "Stress installerer en liten systemregel som lar programmer lese prosessorens energitellere. Noen systemer holder dem private fordi de i sjeldne tilfeller kan brukes til å regne ut hemmeligheter som krypteringsnøkler. Du kan fjerne regelen igjen i innstillingene, og den fjernes også når du avinstallerer Stress."
 
-#: src/ui/helpers.rs:44 src/ui.rs:671
+#: src/ui/helpers.rs:44 src/ui.rs:694
 msgid "Cancel"
 msgstr "Avbryt"
 
@@ -113,234 +201,254 @@ msgstr "Tilgangen til prosessorens effekt er fjernet."
 msgid "Could not remove the system helpers: {}"
 msgstr "Kunne ikke fjerne systemhjelperne: {}"
 
-#: src/ui.rs:28
+#: src/ui.rs:31
 msgid "Follow system"
 msgstr "Følg systemet"
 
-#: src/ui.rs:28
+#: src/ui.rs:31
 msgid "Light"
 msgstr "Lys"
 
-#: src/ui.rs:28
+#: src/ui.rs:31
 msgid "Dark"
 msgstr "Mørk"
 
-#: src/ui.rs:200
+#: src/ui.rs:205
 msgid "Preferences"
 msgstr "Innstillinger"
 
-#: src/ui.rs:201
+#: src/ui.rs:206
 msgid "About Stress"
 msgstr "Om Stress"
 
-#: src/ui.rs:203
+#: src/ui.rs:208
 msgid "Quit"
 msgstr "Avslutt"
 
-#: src/ui.rs:210
+#: src/ui.rs:215
 msgid "Main Menu"
 msgstr "Hovedmeny"
 
-#: src/ui.rs:246
+#: src/ui.rs:251
 msgid "{} threads"
 msgstr "{} tråder"
 
-#: src/ui.rs:247 src/ui.rs:261 src/ui.rs:302
+#: src/ui.rs:252 src/ui.rs:266 src/ui.rs:307
 msgid "Temperature"
 msgstr "Temperatur"
 
-#: src/ui.rs:248 src/ui.rs:262
+#: src/ui.rs:253 src/ui.rs:267
 msgid "Utilization"
 msgstr "Utnyttelse"
 
-#: src/ui.rs:250 src/ui.rs:264
+#: src/ui.rs:255 src/ui.rs:269
 msgid "Power"
 msgstr "Effekt"
 
-#: src/ui.rs:267 src/ui.rs:303
+#: src/ui.rs:272 src/ui.rs:308
 msgid "Fan"
 msgstr "Vifte"
 
-#: src/ui.rs:273
+#: src/ui.rs:278
 msgid "Graphics Cards"
 msgstr "Skjermkort"
 
-#: src/ui.rs:273
+#: src/ui.rs:278
 msgid "Other Graphics Cards"
 msgstr "Andre skjermkort"
 
-#: src/ui.rs:280
+#: src/ui.rs:285
 msgid "No graphics card found"
 msgstr "Fant ikke noe skjermkort"
 
-#: src/ui.rs:287
+#: src/ui.rs:292
 msgid "The power supply updates its readings every few seconds."
 msgstr "Strømforsyningen oppdaterer målingene sine med noen sekunders mellomrom."
 
-#: src/ui.rs:288
+#: src/ui.rs:293
 msgid "Output to the computer"
 msgstr "Levert til maskinen"
 
-#: src/ui.rs:290
+#: src/ui.rs:295
 msgid "From the wall"
 msgstr "Fra stikkontakten"
 
-#: src/ui.rs:291
+#: src/ui.rs:296
 msgid ""
 "Calculated from the efficiency class; the power supply does not measure it."
 msgstr "Beregnet ut fra virkningsgradklassen; strømforsyningen måler det ikke selv."
 
-#: src/ui.rs:295
+#: src/ui.rs:300
 msgid "Rest of the computer"
 msgstr "Resten av maskinen"
 
-#: src/ui.rs:296
+#: src/ui.rs:301
 msgid ""
 "Motherboard, memory, disks and fans: the power supply's output minus the "
 "processor and graphics cards."
 msgstr "Hovedkort, minne, disker og vifter: det strømforsyningen leverer, minus prosessor og skjermkort."
 
-#: src/ui.rs:300
+#: src/ui.rs:305
 msgid "Details"
 msgstr "Detaljer"
 
-#: src/ui.rs:301
+#: src/ui.rs:306
 msgid "Input voltage"
 msgstr "Inngangsspenning"
 
-#: src/ui.rs:311
+#: src/ui.rs:316
 msgid "{} rail"
 msgstr "{}-skinne"
 
-#: src/ui.rs:464
+#: src/ui.rs:470
 msgid ""
 "Put the processor and graphics card under controlled load and watch "
 "temperatures, fans and power use."
 msgstr "Sett prosessor og skjermkort under kontrollert last og følg temperaturer, vifter og strømforbruk."
 
 #. Translators: put your name(s) here to be credited in the About dialog.
-#: src/ui.rs:473
+#: src/ui.rs:479
 msgid "translator-credits"
 msgstr "Jan Ivar Sørensen"
 
-#: src/ui.rs:483
+#: src/ui.rs:489
 msgid "General"
 msgstr "Generelt"
 
-#: src/ui.rs:488
+#: src/ui.rs:494
 msgid "Appearance"
 msgstr "Utseende"
 
-#: src/ui.rs:491
+#: src/ui.rs:497
 msgid "Style"
 msgstr "Stil"
 
-#: src/ui.rs:499
+#: src/ui.rs:505
 msgid "System default"
 msgstr "Systemstandard"
 
-#: src/ui.rs:507 src/ui.rs:511
+#: src/ui.rs:513 src/ui.rs:517
 msgid "Language"
 msgstr "Språk"
 
-#: src/ui.rs:508
+#: src/ui.rs:514
 msgid "“System default” uses the language of your desktop."
 msgstr "«Systemstandard» bruker språket på skrivebordet ditt."
 
-#: src/ui.rs:522
+#: src/ui.rs:528
 msgid "Uninstall Stress"
 msgstr "Avinstaller Stress"
 
-#: src/ui.rs:523
+#: src/ui.rs:529
 msgid ""
 "Removes the program, its menu entry and the helpers it installed, and "
 "optionally the settings."
 msgstr "Fjerner programmet, menyoppføringen og hjelpeprogrammene det installerte, og eventuelt innstillingene."
 
-#: src/ui.rs:526 src/ui.rs:671
+#: src/ui.rs:532 src/ui.rs:694
 msgid "Uninstall"
 msgstr "Avinstaller"
 
-#: src/ui.rs:572
+#: src/ui.rs:579
 msgid "Safety"
 msgstr "Sikkerhet"
 
-#: src/ui.rs:577
+#: src/ui.rs:584
 msgid "Temperature Limits"
 msgstr "Temperaturgrenser"
 
-#: src/ui.rs:578
+#: src/ui.rs:585
 msgid "A test stops by itself when a limit is reached."
 msgstr "En test stopper av seg selv når en grense nås."
 
-#: src/ui.rs:588
+#: src/ui.rs:595
 msgid "Processor"
 msgstr "Prosessor"
 
-#: src/ui.rs:588 src/ui.rs:589
+#: src/ui.rs:595 src/ui.rs:596
 msgid "°C"
 msgstr "°C"
 
-#: src/ui.rs:589 src/ui/test.rs:289
+#: src/ui.rs:596 src/ui/test.rs:318
 msgid "Graphics card"
 msgstr "Skjermkort"
 
-#: src/ui.rs:594
+#: src/ui.rs:601
 msgid "Tests"
 msgstr "Tester"
 
-#: src/ui.rs:596
+#: src/ui.rs:603
 msgid "Longest test"
 msgstr "Lengste test"
 
-#: src/ui.rs:597
+#: src/ui.rs:604
 msgid "Minutes. Also applies to tests started without a duration."
 msgstr "Minutter. Gjelder også tester som startes uten varighet."
 
-#: src/ui.rs:602
+#: src/ui.rs:609
 msgid "Stop when running on battery"
 msgstr "Stopp ved batteridrift"
 
-#: src/ui.rs:658
+#: src/ui.rs:617
+msgid "Fan Control"
+msgstr "Viftestyring"
+
+#: src/ui.rs:622
+msgid ""
+"Running. Tests also stop at {} °C, 5 °C below Vifte's emergency temperature, "
+"and whenever Vifte reports a problem."
+msgstr "Kjører. Tester stopper også ved {} °C, 5 °C under Viftes nødtemperatur, og når Vifte melder om et problem."
+
+#: src/ui.rs:623
+msgid "Running. Tests stop whenever Vifte reports a problem."
+msgstr "Kjører. Tester stopper når Vifte melder om et problem."
+
+#: src/ui.rs:627
+msgid ""
+"Not running. When Vifte controls the fans, tests also respect its emergency "
+"temperature."
+msgstr "Kjører ikke. Når Vifte styrer viftene, respekterer testene også nødtemperaturen dens."
+
+#: src/ui.rs:681
 msgid "Uninstall Stress?"
 msgstr "Avinstallere Stress?"
 
-#: src/ui.rs:659
+#: src/ui.rs:682
 msgid ""
 "The program, its entry in the app menu and the helpers it installed will be "
 "removed."
 msgstr "Programmet, oppføringen i programmenyen og hjelpeprogrammene det installerte blir fjernet."
 
-#: src/ui.rs:661
+#: src/ui.rs:684
 msgid "Also delete the settings"
 msgstr "Slett også innstillingene"
 
-#: src/ui.rs:663
+#: src/ui.rs:686
 msgid "Also remove the system helpers (needs the administrator password)"
 msgstr "Fjern også systemhjelperne (krever administratorpassordet)"
 
-#: src/ui.rs:694
+#: src/ui.rs:718
 msgid "Uninstalling failed: {}"
 msgstr "Avinstalleringen mislyktes: {}"
 
-#: src/ui.rs:698
+#: src/ui.rs:722
 msgid ""
 "Stress and all its settings have been removed. The window will now close."
 msgstr "Stress og alle innstillingene er fjernet. Vinduet lukkes nå."
 
-#: src/ui.rs:700
+#: src/ui.rs:724
 msgid "Stress has been removed. The window will now close."
 msgstr "Stress er fjernet. Vinduet lukkes nå."
 
-#: src/ui.rs:702
+#: src/ui.rs:726
 msgid "Uninstalled"
 msgstr "Avinstallert"
 
-#: src/ui.rs:703
+#: src/ui.rs:727
 msgid "Close"
 msgstr "Lukk"
 
-#: src/ui.rs:713
+#: src/ui.rs:737
 msgid "drives the screen"
 msgstr "styrer skjermen"
 
@@ -404,68 +512,84 @@ msgstr "Stoppet etter {}: lasten på skjermkortet stoppet uventet"
 msgid "Could not start: {}"
 msgstr "Kunne ikke starte: {}"
 
-#: src/ui/test.rs:186
+#: src/ui/test.rs:89
+msgid "Stopped after {}: Vifte switched to emergency mode"
+msgstr "Stoppet etter {}: Vifte gikk over i nødmodus"
+
+#: src/ui/test.rs:90
+msgid "Stopped after {}: Vifte lost a fan curve's temperature sensor"
+msgstr "Stoppet etter {}: Vifte mistet temperatursensoren til en viftekurve"
+
+#: src/ui/test.rs:91
+msgid "Stopped after {}: Vifte's fan control is paused"
+msgstr "Stoppet etter {}: Viftes viftestyring er satt på pause"
+
+#: src/ui/test.rs:214
 msgid "Choose a load for the processor or the graphics card first."
 msgstr "Velg først en last for prosessoren eller skjermkortet."
 
-#: src/ui/test.rs:218 src/ui/test.rs:314
+#: src/ui/test.rs:247 src/ui/test.rs:343
 msgid "Start"
 msgstr "Start"
 
-#: src/ui/test.rs:220 src/ui/test.rs:311
+#: src/ui/test.rs:249 src/ui/test.rs:340
 msgid "Ready"
 msgstr "Klar"
 
-#: src/ui/test.rs:224 src/ui/test.rs:229
+#: src/ui/test.rs:253 src/ui/test.rs:258
 msgid "Stop"
 msgstr "Stopp"
 
-#: src/ui/test.rs:224
+#: src/ui/test.rs:253
 msgid "Starting…"
 msgstr "Starter …"
 
-#: src/ui/test.rs:231
+#: src/ui/test.rs:260
+msgid "Running, started by Claude"
+msgstr "Kjører, startet av Claude"
+
+#: src/ui/test.rs:260
 msgid "Running"
 msgstr "Kjører"
 
-#: src/ui/test.rs:232
+#: src/ui/test.rs:261
 msgid "{} of {}"
 msgstr "{} av {}"
 
-#: src/ui/test.rs:253
+#: src/ui/test.rs:282
 msgid "Load Test"
 msgstr "Lasttest"
 
-#: src/ui/test.rs:254
+#: src/ui/test.rs:283
 msgid ""
 "Puts the chosen load on the processor and graphics card until the time is up "
 "or a limit is reached."
 msgstr "Legger valgt last på prosessor og skjermkort til tiden er ute eller en grense nås."
 
-#: src/ui/test.rs:256
+#: src/ui/test.rs:285
 msgid "Custom"
 msgstr "Egendefinert"
 
-#: src/ui/test.rs:259
+#: src/ui/test.rs:288
 msgid "Profile"
 msgstr "Profil"
 
-#: src/ui/test.rs:265
+#: src/ui/test.rs:294
 msgid "Processor threads"
 msgstr "Prosessortråder"
 
-#: src/ui/test.rs:276
+#: src/ui/test.rs:305
 msgid "Processor load"
 msgstr "Prosessorlast"
 
-#: src/ui/test.rs:282
+#: src/ui/test.rs:311
 msgid "None"
 msgstr "Ingen"
 
-#: src/ui/test.rs:296
+#: src/ui/test.rs:325
 msgid "Graphics card load"
 msgstr "Skjermkortlast"
 
-#: src/ui/test.rs:304
+#: src/ui/test.rs:333
 msgid "Duration"
 msgstr "Varighet"

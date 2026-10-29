@@ -2,6 +2,7 @@
 //! each graphics card, the power supply) with reading cards that graph the
 //! last 30 minutes, plus preferences, about and uninstalling.
 
+pub mod claude;
 mod graph;
 mod helpers;
 mod test;
@@ -22,6 +23,8 @@ use crate::sensors::{format, PsuReading, Sample, Sensors};
 use crate::APP_ID;
 use graph::{Card, Scale};
 use test::TestControls;
+
+pub use claude::{register as register_claude, unregister_from_claude_code};
 
 const REFRESH_INTERVAL: Duration = Duration::from_secs(1);
 const APPEARANCES: [Appearance; 3] = [Appearance::System, Appearance::Light, Appearance::Dark];
@@ -124,8 +127,10 @@ pub struct App {
     title: adw::WindowTitle,
     toasts: adw::ToastOverlay,
     test: TestControls,
-    /// How the last test ended, shown under the panel.
-    last_test: RefCell<Option<String>>,
+    /// How the last test ended, as shown under the panel.
+    last_test: RefCell<Option<(String, crate::loadtest::Finished)>>,
+    /// The running test was started by Claude.
+    claude_started: Cell<bool>,
     /// The window is being replaced for a language change; a running test
     /// carries on.
     rebuilding: Cell<bool>,
@@ -338,6 +343,7 @@ impl App {
             toasts,
             test,
             last_test: RefCell::new(None),
+            claude_started: Cell::new(false),
             rebuilding: Cell::new(false),
             config: RefCell::new(config),
             machine,
@@ -532,6 +538,7 @@ impl App {
         page.add(&removal);
         dialog.add(&page);
         dialog.add(&self.safety_page());
+        dialog.add(&self.claude_preferences_page(&dialog));
 
         let weak = Rc::downgrade(self);
         let prefs = dialog.clone();
@@ -605,6 +612,22 @@ impl App {
         other.add(&max_minutes);
         other.add(&battery);
         page.add(&other);
+
+        // Vifte's emergency temperature also limits tests while it runs.
+        let fans = adw::PreferencesGroup::builder().title(tr("Fan Control")).build();
+        let vifte_row = adw::ActionRow::builder().title("Vifte").build();
+        match crate::vifte::state() {
+            Some(state) => {
+                vifte_row.set_subtitle(&match state.limit() {
+                    Some(limit) => trf("Running. Tests also stop at {} °C, 5 °C below Vifte's emergency temperature, and whenever Vifte reports a problem.", &[&limit]),
+                    None => tr("Running. Tests stop whenever Vifte reports a problem.").to_string(),
+                });
+                vifte_row.add_prefix(&gtk::Image::from_icon_name("emblem-ok-symbolic"));
+            }
+            None => vifte_row.set_subtitle(tr("Not running. When Vifte controls the fans, tests also respect its emergency temperature.")),
+        }
+        fans.add(&vifte_row);
+        page.add(&fans);
 
         let save = |app: &Rc<App>, change: &dyn Fn(&mut Config)| {
             change(&mut app.config.borrow_mut());
@@ -690,6 +713,7 @@ impl App {
     }
 
     fn finish_uninstall(self: &Rc<Self>, purge: bool) {
+        unregister_from_claude_code();
         if let Err(err) = crate::uninstall::uninstall(purge) {
             self.toast(&trf("Uninstalling failed: {}", &[&err]));
             return;

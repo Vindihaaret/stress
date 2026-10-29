@@ -1,7 +1,9 @@
 //! One load test at a time: starts and stops the CPU and GPU loads, changes
 //! their levels while running, and after every sensor sample (on the sensor
 //! thread, so a busy window cannot delay it) checks the limits and steers the
-//! GPU toward the utilization asked for.
+//! GPU toward the utilization asked for. When Vifte runs, its emergency
+//! temperature (less a margin) also limits the test, and the test stops if
+//! Vifte reports trouble.
 
 use std::fs;
 use std::sync::{Arc, Mutex};
@@ -10,6 +12,7 @@ use std::time::{Duration, Instant};
 use crate::cpuload::CpuLoad;
 use crate::gpuload::GpuLoad;
 use crate::sensors::Sample;
+use crate::vifte;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Levels {
@@ -36,6 +39,9 @@ pub enum StopReason {
     Battery,
     /// The GPU worker exited (driver error or crash).
     WorkerStopped,
+    VifteEmergency,
+    VifteSensorLost,
+    ViftePaused,
     Failed(String),
 }
 
@@ -49,7 +55,7 @@ pub struct Finished {
 pub enum Status {
     Idle,
     Starting,
-    Running { started: Instant, ends: Instant },
+    Running { started: Instant, ends: Instant, levels: Levels },
 }
 
 struct Running {
@@ -163,7 +169,7 @@ impl Controller {
         match &self.state.lock().unwrap().phase {
             Phase::Idle => Status::Idle,
             Phase::Starting { .. } => Status::Starting,
-            Phase::Running(run) => Status::Running { started: run.started, ends: run.ends },
+            Phase::Running(run) => Status::Running { started: run.started, ends: run.ends, levels: run.levels },
         }
     }
 
@@ -186,16 +192,26 @@ impl Controller {
     /// Called by the sensor thread after every sample. Returns the levels
     /// that were running, to be stored with the sample.
     pub fn after_sample(&self, sample: &Sample) -> Option<Levels> {
+        // Asked outside the lock, and only while a test runs.
+        let vifte = matches!(self.status(), Status::Running { .. }).then(vifte::state).flatten();
         let mut state = self.state.lock().unwrap();
         let Phase::Running(run) = &mut state.phase else { return None };
         let levels = run.levels;
         let gpu = levels.gpu.and_then(|i| sample.gpus.get(i));
+        let vifte_limit = vifte.as_ref().and_then(|v| v.limit()).unwrap_or(f64::INFINITY);
+        let (cpu_limit, gpu_limit) = (run.limits.cpu.min(vifte_limit), run.limits.gpu.min(vifte_limit));
         let reason = if Instant::now() >= run.ends {
             Some(StopReason::TimeUp)
-        } else if let Some(t) = sample.cpu_temperature.filter(|t| *t >= run.limits.cpu) {
+        } else if let Some(t) = sample.cpu_temperature.filter(|t| *t >= cpu_limit) {
             Some(StopReason::CpuLimit(t))
-        } else if let Some(t) = gpu.and_then(|g| g.temperature).filter(|t| *t >= run.limits.gpu) {
+        } else if let Some(t) = gpu.and_then(|g| g.temperature).filter(|t| *t >= gpu_limit) {
             Some(StopReason::GpuLimit(t))
+        } else if vifte.as_ref().is_some_and(|v| v.emergency_active) {
+            Some(StopReason::VifteEmergency)
+        } else if vifte.as_ref().is_some_and(|v| v.sensor_lost) {
+            Some(StopReason::VifteSensorLost)
+        } else if vifte.as_ref().is_some_and(|v| v.paused) {
+            Some(StopReason::ViftePaused)
         } else if run.limits.stop_on_battery && on_battery() {
             Some(StopReason::Battery)
         } else if run.gpu.as_mut().is_some_and(|(worker, _)| !worker.running()) {

@@ -34,6 +34,9 @@ pub struct Config {
     pub gpu_load: u32,
     /// Test length; 0 runs until stopped (at most `max_minutes`).
     pub duration_minutes: u32,
+    /// Let Claude (through `stresstest mcp`) read the sensors and run tests.
+    /// Off until the user turns it on.
+    pub claude_control: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -59,6 +62,7 @@ impl Default for Config {
             gpu: None,
             gpu_load: 100,
             duration_minutes: 10,
+            claude_control: false,
         }
     }
 }
