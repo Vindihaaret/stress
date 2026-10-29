@@ -1,0 +1,78 @@
+//! Persistent settings: appearance, language and the safety limits, stored as
+//! JSON in ~/.config/stresstest/config.json.
+
+use std::fs;
+use std::path::PathBuf;
+
+use serde::{Deserialize, Serialize};
+
+/// Ranges offered in the preferences; values outside them are pulled back in
+/// when loading, so a hand-edited file cannot switch the safety off.
+pub const CPU_LIMIT_RANGE: (f64, f64) = (60.0, 105.0);
+pub const GPU_LIMIT_RANGE: (f64, f64) = (60.0, 100.0);
+pub const MAX_MINUTES_RANGE: (f64, f64) = (1.0, 240.0);
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Config {
+    /// Language code, or `None` to follow the desktop.
+    pub language: Option<String>,
+    pub appearance: Appearance,
+    /// A test stops when the CPU reaches this temperature (°C).
+    pub cpu_limit: f64,
+    /// A test stops when a loaded GPU reaches this temperature (°C).
+    pub gpu_limit: f64,
+    /// No test runs longer than this, also when started without a duration.
+    pub max_minutes: f64,
+    /// Stop a test when the computer switches to battery power.
+    pub stop_on_battery: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Appearance {
+    #[default]
+    System,
+    Light,
+    Dark,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            language: None,
+            appearance: Appearance::System,
+            cpu_limit: 95.0,
+            gpu_limit: 90.0,
+            max_minutes: 60.0,
+            stop_on_battery: true,
+        }
+    }
+}
+
+fn config_path() -> PathBuf {
+    gtk::glib::user_config_dir().join("stresstest").join("config.json")
+}
+
+impl Config {
+    pub fn load() -> Self {
+        let mut config: Config = fs::read_to_string(config_path())
+            .ok()
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .unwrap_or_default();
+        config.cpu_limit = config.cpu_limit.clamp(CPU_LIMIT_RANGE.0, CPU_LIMIT_RANGE.1);
+        config.gpu_limit = config.gpu_limit.clamp(GPU_LIMIT_RANGE.0, GPU_LIMIT_RANGE.1);
+        config.max_minutes = config.max_minutes.clamp(MAX_MINUTES_RANGE.0, MAX_MINUTES_RANGE.1);
+        config
+    }
+
+    pub fn save(&self) {
+        let path = config_path();
+        if let Some(dir) = path.parent() {
+            let _ = fs::create_dir_all(dir);
+        }
+        if let Ok(text) = serde_json::to_string_pretty(self) {
+            let _ = fs::write(path, text);
+        }
+    }
+}

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffa348"/>
+      <stop offset="1" stop-color="#e01b24"/>
+    </linearGradient>
+    <linearGradient id="dial" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6f5f4"/>
+      <stop offset="1" stop-color="#deddda"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="26" fill="url(#bg)"/>
+  <!-- gauge -->
+  <path d="M24 84a40 40 0 1 1 80 0z" fill="url(#dial)"/>
+  <path d="M34 84a30 30 0 0 1 8.8-21.2" fill="none" stroke="#2ec27e" stroke-width="8"/>
+  <path d="M42.8 62.8A30 30 0 0 1 85.2 62.8" fill="none" stroke="#f5c211" stroke-width="8"/>
+  <path d="M85.2 62.8A30 30 0 0 1 94 84" fill="none" stroke="#e01b24" stroke-width="8"/>
+  <!-- needle -->
+  <path d="M64 84l24-30-30 24z" fill="#241f31"/>
+  <circle cx="64" cy="84" r="7" fill="#241f31"/>
+  <rect x="24" y="92" width="80" height="10" rx="5" fill="#ffffff" opacity="0.35"/>
+</svg>

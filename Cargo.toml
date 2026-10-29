@@ -1,0 +1,22 @@
+[package]
+name = "stresstest"
+version = "0.1.0"
+edition = "2021"
+description = "CPU and GPU stress test with live sensors for Linux"
+license = "GPL-3.0-or-later"
+authors = ["Jan Ivar Sørensen"]
+repository = "https://github.com/Vindihaaret/stress"
+readme = "README.md"
+keywords = ["stress-test", "gpu", "cpu", "gtk4", "libadwaita"]
+rust-version = "1.88"
+
+[dependencies]
+gtk = { package = "gtk4", version = "0.9", features = ["v4_14"] }
+adw = { package = "libadwaita", version = "0.7", features = ["v1_5"] }
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+lto = "thin"
+strip = true

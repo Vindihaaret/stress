@@ -1,0 +1,271 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the Stress package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Stress\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-29 18:06+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/devices.rs:54
+msgid "No driver is active (the system was started with nomodeset)"
+msgstr ""
+
+#: src/devices.rs:55
+msgid "No driver is active"
+msgstr ""
+
+#: src/devices.rs:56
+msgid "The {} driver offers no graphics device for it"
+msgstr ""
+
+#: src/ui/graph.rs:98
+msgid "Last {} min: {} – {}"
+msgstr ""
+
+#: src/ui.rs:24
+msgid "Follow system"
+msgstr ""
+
+#: src/ui.rs:24
+msgid "Light"
+msgstr ""
+
+#: src/ui.rs:24
+msgid "Dark"
+msgstr ""
+
+#: src/ui.rs:185
+msgid "Preferences"
+msgstr ""
+
+#: src/ui.rs:186
+msgid "About Stress"
+msgstr ""
+
+#: src/ui.rs:188
+msgid "Quit"
+msgstr ""
+
+#: src/ui.rs:195
+msgid "Main Menu"
+msgstr ""
+
+#: src/ui.rs:218
+msgid "{} threads"
+msgstr ""
+
+#: src/ui.rs:219 src/ui.rs:242 src/ui.rs:283
+msgid "Temperature"
+msgstr ""
+
+#: src/ui.rs:220 src/ui.rs:243
+msgid "Utilization"
+msgstr ""
+
+#: src/ui.rs:222 src/ui.rs:245
+msgid "Power"
+msgstr ""
+
+#: src/ui.rs:227
+msgid ""
+"CPU power is not available: on this system only the administrator can read "
+"it."
+msgstr ""
+
+#: src/ui.rs:248 src/ui.rs:284
+msgid "Fan"
+msgstr ""
+
+#: src/ui.rs:254
+msgid "Graphics Cards"
+msgstr ""
+
+#: src/ui.rs:254
+msgid "Other Graphics Cards"
+msgstr ""
+
+#: src/ui.rs:261
+msgid "No graphics card found"
+msgstr ""
+
+#: src/ui.rs:268
+msgid "The power supply updates its readings every few seconds."
+msgstr ""
+
+#: src/ui.rs:269
+msgid "Output to the computer"
+msgstr ""
+
+#: src/ui.rs:271
+msgid "From the wall"
+msgstr ""
+
+#: src/ui.rs:272
+msgid ""
+"Calculated from the efficiency class; the power supply does not measure it."
+msgstr ""
+
+#: src/ui.rs:276
+msgid "Rest of the computer"
+msgstr ""
+
+#: src/ui.rs:277
+msgid ""
+"Motherboard, memory, disks and fans: the power supply's output minus the "
+"processor and graphics cards."
+msgstr ""
+
+#: src/ui.rs:281
+msgid "Details"
+msgstr ""
+
+#: src/ui.rs:282
+msgid "Input voltage"
+msgstr ""
+
+#: src/ui.rs:292
+msgid "{} rail"
+msgstr ""
+
+#: src/ui.rs:425
+msgid ""
+"Put the processor and graphics card under controlled load and watch "
+"temperatures, fans and power use."
+msgstr ""
+
+#. Translators: put your name(s) here to be credited in the About dialog.
+#: src/ui.rs:434
+msgid "translator-credits"
+msgstr ""
+
+#: src/ui.rs:444
+msgid "General"
+msgstr ""
+
+#: src/ui.rs:449
+msgid "Appearance"
+msgstr ""
+
+#: src/ui.rs:452
+msgid "Style"
+msgstr ""
+
+#: src/ui.rs:460
+msgid "System default"
+msgstr ""
+
+#: src/ui.rs:468 src/ui.rs:472
+msgid "Language"
+msgstr ""
+
+#: src/ui.rs:469
+msgid "“System default” uses the language of your desktop."
+msgstr ""
+
+#: src/ui.rs:482
+msgid "Uninstall Stress"
+msgstr ""
+
+#: src/ui.rs:483
+msgid ""
+"Removes the program, its menu entry and the helpers it installed, and "
+"optionally the settings."
+msgstr ""
+
+#: src/ui.rs:486 src/ui.rs:622
+msgid "Uninstall"
+msgstr ""
+
+#: src/ui.rs:532
+msgid "Safety"
+msgstr ""
+
+#: src/ui.rs:537
+msgid "Temperature Limits"
+msgstr ""
+
+#: src/ui.rs:538
+msgid "A test stops by itself when a limit is reached."
+msgstr ""
+
+#: src/ui.rs:548
+msgid "Processor"
+msgstr ""
+
+#: src/ui.rs:548 src/ui.rs:549
+msgid "°C"
+msgstr ""
+
+#: src/ui.rs:549
+msgid "Graphics card"
+msgstr ""
+
+#: src/ui.rs:554
+msgid "Tests"
+msgstr ""
+
+#: src/ui.rs:556
+msgid "Longest test"
+msgstr ""
+
+#: src/ui.rs:557
+msgid "Minutes. Also applies to tests started without a duration."
+msgstr ""
+
+#: src/ui.rs:562
+msgid "Stop when running on battery"
+msgstr ""
+
+#: src/ui.rs:617
+msgid "Uninstall Stress?"
+msgstr ""
+
+#: src/ui.rs:618
+msgid ""
+"The program, its entry in the app menu and the helpers it installed will be "
+"removed."
+msgstr ""
+
+#: src/ui.rs:620
+msgid "Also delete the settings"
+msgstr ""
+
+#: src/ui.rs:622
+msgid "Cancel"
+msgstr ""
+
+#: src/ui.rs:641
+msgid "Uninstalling failed: {}"
+msgstr ""
+
+#: src/ui.rs:645
+msgid ""
+"Stress and all its settings have been removed. The window will now close."
+msgstr ""
+
+#: src/ui.rs:647
+msgid "Stress has been removed. The window will now close."
+msgstr ""
+
+#: src/ui.rs:649
+msgid "Uninstalled"
+msgstr ""
+
+#: src/ui.rs:650
+msgid "Close"
+msgstr ""
+
+#: src/ui.rs:660
+msgid "drives the screen"
+msgstr ""

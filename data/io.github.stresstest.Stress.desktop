@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Stress
+GenericName=Stress Test
+GenericName[nb]=Stresstest
+Comment=Put the CPU and graphics card under controlled load and watch temperatures and power use
+Comment[nb]=Sett prosessor og skjermkort under kontrollert last og følg temperaturer og strømforbruk
+Exec=stresstest
+Icon=io.github.stresstest.Stress
+Terminal=false
+Categories=System;Monitor;GTK;
+Keywords=stress;load;burn-in;benchmark;cpu;gpu;temperature;power;
+Keywords[nb]=stress;last;belastning;test;prosessor;skjermkort;temperatur;strøm;cpu;gpu;
+StartupNotify=true
