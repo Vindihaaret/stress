@@ -37,7 +37,12 @@ fn main() -> std::process::ExitCode {
         i18n::set_language(Some(lang));
     }
 
-    let app = adw::Application::builder().application_id(APP_ID).build();
+    let mut flags = gio::ApplicationFlags::empty();
+    // Screenshots run as a separate instance, next to a Stress already open.
+    if std::env::var_os("STRESS_SCREENSHOT").is_some() {
+        flags |= gio::ApplicationFlags::NON_UNIQUE;
+    }
+    let app = adw::Application::builder().application_id(APP_ID).flags(flags).build();
 
     app.connect_startup(move |app| {
         gtk::Window::set_default_icon_name(APP_ID);
