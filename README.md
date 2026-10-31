@@ -19,7 +19,7 @@ and [Vifte](https://github.com/Vindihaaret/vifte).
 * **Processor load** on as many threads as you choose, at a chosen share of the time (1–100 %). Dense
   vector arithmetic, so the load produces real heat – no stress-ng needed.
 * **Graphics card load** on the card you pick (computers with several cards included), at a chosen
-  utilization that Stress holds steady by measuring and correcting. Works with NVIDIA, AMD and Intel
+  utilization that the load holds by measuring its own time on the card. Works with NVIDIA, AMD and Intel
   through EGL; each card is loaded in its own process.
 * **Profiles** (full load, processor only, graphics card only, gaming, light load), durations from one
   minute to "until stopped", and levels that can be changed while a test runs.
@@ -134,7 +134,7 @@ the app's own uninstaller removes the Claude Code registration.
 | Processor threads | How many of the processor's threads are loaded |
 | Processor load | Share of the time each loaded thread works, in 100 ms periods |
 | Graphics card | Which card to load; cards that cannot be used are listed with the reason |
-| Graphics card load | Utilization of the card, held steady by Stress |
+| Graphics card load | Share of the time the card works on the load |
 | Duration | 1–60 minutes, or until stopped (never longer than the longest test in the preferences) |
 
 The graphics card load is utilization – the share of the time the card is busy – as NVIDIA's and AMD's
@@ -255,8 +255,8 @@ stresstest run --cpu-load 100 --gpu 0000:01:00.0 --gpu-load 80 --seconds 300
   driver from starting.
 * **Processor power is missing** – see [Processor power](#processor-power).
 * **No status icon on GNOME** – install and enable the AppIndicator extension.
-* **Graphics card load holds a lower or higher utilization for a few seconds** – Stress corrects it step
-  by step once a second, so it settles within a few seconds after a change.
+* **Graphics card utilization goes above the level you set** – other programs and the desktop use the card
+  too, and count for more when the driver has lowered the clocks. Stress only sets its own share.
 
 ## Files
 

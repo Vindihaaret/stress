@@ -1,6 +1,6 @@
 //! GPU load: a headless OpenGL ES context on one chosen GPU through the EGL
-//! device platform, drawing a heavy fragment shader for `load` percent of every
-//! 50 ms. Each GPU is loaded by its own worker process (`stresstest
+//! device platform, drawing a heavy fragment shader for `load` percent of the
+//! time, measured by the worker itself. Each GPU is loaded by its own worker process (`stresstest
 //! gpu-worker <pci>`), so a driver crash or hang cannot take the app with it.
 //!
 //! Single draws are kept to a few milliseconds, so the desktop stays responsive
@@ -16,11 +16,17 @@ use std::time::{Duration, Instant};
 
 use crate::dl::{self, Lib};
 
-const PERIOD: Duration = Duration::from_millis(50);
+/// How long to sleep at most between checks while waiting.
+const IDLE_POLL: Duration = Duration::from_millis(10);
+const MIN_SLEEP: Duration = Duration::from_millis(1);
+/// Unused time that may be caught up on after a stall, and overrun that is
+/// paid back; both small enough not to show as a burst or a gap.
+const MAX_CREDIT: f64 = 0.02;
+const MAX_DEBT: f64 = 0.25;
 const WIDTH: i32 = 2048;
 const HEIGHT: i32 = 2048;
 /// Target length of a single draw.
-const DRAW_TIME: Duration = Duration::from_millis(4);
+const DRAW_TIME: Duration = Duration::from_millis(2);
 
 // ---------------------------------------------------------------- parent side
 
@@ -142,28 +148,35 @@ pub fn worker_main(pci: &str) -> i32 {
 
     let mut iterations = gl.calibrate();
     let mut seed = 0.0f32;
+    // Time the GPU may still use, in seconds. It grows with the load's share
+    // of the clock and shrinks by what each draw really took, so the share
+    // holds whatever the clocks do: a draw that runs long is paid back.
+    let mut credit = 0.0f64;
+    let mut last = Instant::now();
     while !stop.load(Ordering::Relaxed) && !orphaned() {
-        let start = Instant::now();
-        let percent = load.load(Ordering::Relaxed).min(100);
-        if percent == 0 {
-            std::thread::sleep(PERIOD);
+        let share = load.load(Ordering::Relaxed).min(100) as f64 / 100.0;
+        let now = Instant::now();
+        credit = (credit + now.duration_since(last).as_secs_f64() * share).min(MAX_CREDIT);
+        last = now;
+        if share == 0.0 {
+            credit = 0.0;
+            std::thread::sleep(IDLE_POLL);
             continue;
         }
-        let busy = PERIOD * percent / 100;
-        while start.elapsed() < busy {
-            let t = Instant::now();
-            seed = (seed + 0.013) % 1.0;
-            gl.draw(iterations, seed);
-            // Keep draws short also when clocks change under load.
-            let took = t.elapsed();
-            if took > DRAW_TIME * 2 && iterations > 1 {
-                iterations /= 2;
-            } else if took < DRAW_TIME / 2 && iterations < 1 << 16 {
-                iterations *= 2;
-            }
+        if credit <= 0.0 && share < 1.0 {
+            std::thread::sleep(Duration::from_secs_f64(-credit / share).clamp(MIN_SLEEP, IDLE_POLL));
+            continue;
         }
-        if percent < 100 {
-            std::thread::sleep(PERIOD.saturating_sub(start.elapsed()));
+        seed = (seed + 0.013) % 1.0;
+        let t = Instant::now();
+        gl.draw(iterations, seed);
+        let took = t.elapsed();
+        credit = (credit - took.as_secs_f64()).max(-MAX_DEBT);
+        // Keep draws short also when clocks change under load.
+        if took > DRAW_TIME * 2 && iterations > 1 {
+            iterations /= 2;
+        } else if took < DRAW_TIME / 2 && iterations < 1 << 16 {
+            iterations *= 2;
         }
     }
     0
