@@ -18,6 +18,8 @@ pub struct Config {
     /// Language code, or `None` to follow the desktop.
     pub language: Option<String>,
     pub appearance: Appearance,
+    /// Tint the window after the temperature, as Vifte does.
+    pub window_tint: bool,
     /// A test stops when the CPU reaches this temperature (°C).
     pub cpu_limit: f64,
     /// A test stops when a loaded GPU reaches this temperature (°C).
@@ -62,6 +64,7 @@ impl Default for Config {
         Self {
             language: None,
             appearance: Appearance::System,
+            window_tint: true,
             cpu_limit: 95.0,
             gpu_limit: 90.0,
             max_minutes: 60.0,

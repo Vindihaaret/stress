@@ -1,5 +1,6 @@
-//! The load test panel: profile, processor threads and load, graphics card and
-//! its load, duration, Start/Stop and the test's status.
+//! The load test panel at the side of the window: the test's status,
+//! Start/Stop, profiles, processor threads and load, graphics card and its
+//! load, and duration.
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -7,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use adw::prelude::*;
 
-use super::App;
+use super::{status_hero, App};
 use crate::i18n::{n_, tr, trf};
 use crate::loadtest::{Finished, Levels, Limits, Status, StopReason};
 
@@ -24,8 +25,13 @@ const PROFILES: [(&str, u32, u32); 5] = [
 const DURATIONS: [u32; 7] = [1, 5, 10, 15, 30, 60, 0];
 
 pub struct TestControls {
-    pub group: adw::PreferencesGroup,
-    profile: adw::ComboRow,
+    pub panel: gtk::ScrolledWindow,
+    hero: gtk::Box,
+    hero_title: gtk::Label,
+    hero_subtitle: gtk::Label,
+    profiles: Vec<gtk::ToggleButton>,
+    /// "Custom" when no profile matches.
+    profile_name: gtk::Label,
     threads: adw::SpinRow,
     cpu_load: gtk::Scale,
     gpu: Option<adw::ComboRow>,
@@ -33,7 +39,6 @@ pub struct TestControls {
     gpu_load_row: adw::ActionRow,
     duration: adw::ComboRow,
     start: gtk::Button,
-    status: adw::ActionRow,
     progress: gtk::ProgressBar,
     /// GPU list indices offered in the picker, in its order.
     usable: Vec<usize>,
@@ -47,15 +52,17 @@ fn scale_row(title: &str) -> (adw::ActionRow, gtk::Scale) {
     scale.set_draw_value(true);
     scale.set_value_pos(gtk::PositionType::Right);
     scale.set_format_value_func(|_, v| format!("{v:.0} %"));
-    scale.set_width_request(280);
+    scale.set_width_request(210);
     scale.set_hexpand(true);
     scale.set_valign(gtk::Align::Center);
-    for mark in [0.0, 25.0, 50.0, 75.0, 100.0] {
-        scale.add_mark(mark, gtk::PositionType::Bottom, None);
-    }
     let row = adw::ActionRow::builder().title(title).build();
     row.add_suffix(&scale);
     (row, scale)
+}
+
+/// The profile that matches a setup, if any.
+fn matching_profile(all_threads: bool, cpu_load: u32, gpu_load: u32) -> Option<usize> {
+    PROFILES.iter().position(|&(_, cpu, gpu)| all_threads && cpu == cpu_load && gpu == gpu_load)
 }
 
 fn duration_label(minutes: u32, longest: f64) -> String {
@@ -114,21 +121,19 @@ impl App {
         let c = changed;
         t.duration.connect_selected_notify(move |_| c());
 
-        let weak = Rc::downgrade(self);
-        t.profile.connect_selected_notify(move |row| {
-            let Some(app) = weak.upgrade() else { return };
-            let t = &app.test;
-            if t.updating.get() || row.selected() == 0 {
-                return;
-            }
-            let Some(&(_, cpu, gpu)) = PROFILES.get(row.selected() as usize - 1) else { return };
-            t.updating.set(true);
-            t.threads.set_value(t.threads.adjustment().upper());
-            t.cpu_load.set_value(cpu as f64);
-            t.gpu_load.set_value(gpu as f64);
-            t.updating.set(false);
-            app.test_changed();
-        });
+        for (button, &(_, cpu, gpu)) in t.profiles.iter().zip(&PROFILES) {
+            let weak = Rc::downgrade(self);
+            button.connect_clicked(move |_| {
+                let Some(app) = weak.upgrade() else { return };
+                let t = &app.test;
+                t.updating.set(true);
+                t.threads.set_value(t.threads.adjustment().upper());
+                t.cpu_load.set_value(cpu as f64);
+                t.gpu_load.set_value(gpu as f64);
+                t.updating.set(false);
+                app.test_changed();
+            });
+        }
 
         let weak = Rc::downgrade(self);
         t.start.connect_clicked(move |_| {
@@ -175,18 +180,12 @@ impl App {
         self.update_test_status();
     }
 
-    /// Shows the profile that matches the panel, or "Custom".
+    /// Marks the profile that matches the panel, or says "Custom".
     fn sync_profile(&self) {
         let t = &self.test;
         let all_threads = t.threads.value() as usize == t.threads.adjustment().upper() as usize;
         let (cpu_load, gpu_load) = (t.cpu_load.value() as u32, t.gpu_load.value() as u32);
-        let profile = PROFILES
-            .iter()
-            .position(|&(_, cpu, gpu)| all_threads && cpu == cpu_load && gpu == gpu_load)
-            .map_or(0, |i| i + 1);
-        let updating = t.updating.replace(true);
-        t.profile.set_selected(profile as u32);
-        t.updating.set(updating);
+        self.test.show_profile(matching_profile(all_threads, cpu_load, gpu_load));
     }
 
     /// Shows levels set by Claude in the panel, without saving them as the
@@ -242,31 +241,38 @@ impl App {
         for row in [t.gpu.as_ref().map(|r| r.upcast_ref::<gtk::Widget>()), Some(t.duration.upcast_ref())].into_iter().flatten() {
             row.set_sensitive(idle);
         }
-        let (label, css, title, subtitle, progress) = match status {
+        let last = self.last_test.borrow();
+        let unusual_end = last.as_ref().is_some_and(|(_, f)| !matches!(f.reason, StopReason::User | StopReason::TimeUp));
+        let (label, css, level, title, subtitle, progress) = match status {
             Status::Idle => (
                 tr("Start"),
                 "suggested-action",
-                tr("Ready"),
-                self.last_test.borrow().as_ref().map(|(text, _)| text.clone()).unwrap_or_default(),
+                if unusual_end { "stopped" } else { "idle" },
+                if unusual_end { tr("Test stopped") } else { tr("Ready") },
+                last.as_ref().map_or_else(|| tr("Choose a load and press Start").to_owned(), |(text, _)| text.clone()),
                 None,
             ),
-            Status::Starting => (tr("Stop"), "destructive-action", tr("Starting…"), String::new(), Some(0.0)),
+            Status::Starting => (tr("Stop"), "destructive-action", "running", tr("Starting…"), String::new(), Some(0.0)),
             Status::Running { started, ends, .. } => {
                 let total = ends.duration_since(started);
                 let elapsed = Instant::now().saturating_duration_since(started).min(total);
+                let by_claude = self.claude_started.get();
                 (
                     tr("Stop"),
                     "destructive-action",
-                    if self.claude_started.get() { tr("Running, started by Claude") } else { tr("Running") },
+                    if by_claude { "claude" } else { "running" },
+                    if by_claude { tr("Running, started by Claude") } else { tr("Running") },
                     trf("{} of {}", &[&clock(elapsed), &clock(total)]),
                     Some(elapsed.as_secs_f64() / total.as_secs_f64().max(1.0)),
                 )
             }
         };
         t.start.set_label(label);
-        t.start.set_css_classes(&["pill", css]);
-        t.status.set_title(title);
-        t.status.set_subtitle(&subtitle);
+        t.start.set_css_classes(&["stress-go", css]);
+        t.hero.set_css_classes(&["status-hero", level]);
+        t.hero_title.set_label(title);
+        t.hero_subtitle.set_label(&subtitle);
+        t.hero_subtitle.set_visible(!subtitle.is_empty());
         t.progress.set_visible(progress.is_some());
         t.progress.set_fraction(progress.unwrap_or(0.0));
         self.title.set_subtitle(&if idle { String::new() } else { format!("{title} · {subtitle}") });
@@ -278,18 +284,42 @@ impl TestControls {
     /// of the graphics cards that can be loaded.
     pub fn new(app_config: &crate::config::Config, threads: usize, gpus: &[(usize, String, String)]) -> TestControls {
         let longest = app_config.max_minutes;
-        let group = adw::PreferencesGroup::builder()
-            .title(tr("Load Test"))
-            .description(tr("Puts the chosen load on the processor and graphics card until the time is up or a limit is reached."))
+        let panel = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(16)
+            .margin_start(16)
+            .margin_end(16)
+            .margin_bottom(16)
             .build();
-        let mut profile_labels = vec![tr("Custom")];
-        profile_labels.extend(PROFILES.iter().map(|(name, _, _)| tr(name)));
-        let profile = adw::ComboRow::builder()
-            .title(tr("Profile"))
-            .model(&gtk::StringList::new(&profile_labels))
-            .build();
-        group.add(&profile);
 
+        let (hero, hero_title, hero_subtitle, hero_text) = status_hero();
+        let progress = gtk::ProgressBar::builder().visible(false).margin_top(6).build();
+        hero_text.append(&progress);
+        let start = gtk::Button::builder().label(tr("Start")).css_classes(["stress-go", "suggested-action"]).build();
+        let status = gtk::Box::builder().orientation(gtk::Orientation::Vertical).spacing(10).build();
+        status.append(&hero);
+        status.append(&start);
+        panel.append(&status);
+
+        let profile_name = gtk::Label::builder().css_classes(["stress-sub"]).build();
+        let profile_group = adw::PreferencesGroup::builder().title(tr("Profile")).header_suffix(&profile_name).build();
+        let profile_grid = gtk::Grid::builder().column_homogeneous(true).column_spacing(6).row_spacing(6).build();
+        let profiles: Vec<gtk::ToggleButton> = PROFILES
+            .iter()
+            .enumerate()
+            .map(|(i, (name, cpu, gpu))| {
+                let text = gtk::Box::builder().orientation(gtk::Orientation::Vertical).build();
+                text.append(&gtk::Label::builder().label(tr(name)).wrap(true).justify(gtk::Justification::Center).build());
+                text.append(&gtk::Label::builder().label(format!("{cpu} % · {gpu} %")).css_classes(["stress-profile-load"]).build());
+                let button = gtk::ToggleButton::builder().child(&text).css_classes(["stress-profile"]).build();
+                profile_grid.attach(&button, i as i32 % 3, i as i32 / 3, 1, 1);
+                button
+            })
+            .collect();
+        profile_group.add(&profile_grid);
+        panel.append(&profile_group);
+
+        let processor = adw::PreferencesGroup::builder().title(tr("Processor")).build();
         let threads_row = adw::SpinRow::builder()
             .title(tr("Processor threads"))
             .adjustment(&gtk::Adjustment::new(
@@ -301,10 +331,13 @@ impl TestControls {
                 0.0,
             ))
             .build();
-        group.add(&threads_row);
-        let (cpu_row, cpu_load) = scale_row(tr("Processor load"));
+        processor.add(&threads_row);
+        let (cpu_row, cpu_load) = scale_row(tr("Load"));
         cpu_load.set_value(app_config.cpu_load as f64);
-        group.add(&cpu_row);
+        processor.add(&cpu_row);
+        panel.append(&processor);
+
+        let graphics = adw::PreferencesGroup::builder().title(tr("Graphics card")).build();
 
         let gpu = (!gpus.is_empty()).then(|| {
             let mut labels: Vec<&str> = gpus.iter().map(|(_, name, _)| name.as_str()).collect();
@@ -315,17 +348,19 @@ impl TestControls {
                 .and_then(|pci| gpus.iter().position(|(_, _, p)| p == pci))
                 .unwrap_or(if app_config.gpu.is_none() && app_config.gpu_load > 0 { 0 } else { gpus.len() });
             let row = adw::ComboRow::builder()
-                .title(tr("Graphics card"))
+                .title(tr("Card"))
                 .model(&gtk::StringList::new(&labels))
                 .selected(selected as u32)
                 .build();
-            group.add(&row);
+            graphics.add(&row);
             row
         });
-        let (gpu_load_row, gpu_load) = scale_row(tr("Graphics card load"));
+        let (gpu_load_row, gpu_load) = scale_row(tr("Load"));
         gpu_load.set_value(app_config.gpu_load as f64);
         gpu_load_row.set_visible(gpu.is_some());
-        group.add(&gpu_load_row);
+        graphics.add(&gpu_load_row);
+        graphics.set_visible(gpu.is_some());
+        panel.append(&graphics);
 
         let duration_labels: Vec<String> = DURATIONS.iter().map(|m| duration_label(*m, longest)).collect();
         let duration_refs: Vec<&str> = duration_labels.iter().map(String::as_str).collect();
@@ -334,18 +369,26 @@ impl TestControls {
             .model(&gtk::StringList::new(&duration_refs))
             .selected(DURATIONS.iter().position(|m| *m == app_config.duration_minutes).unwrap_or(2) as u32)
             .build();
-        group.add(&duration);
-
-        let progress = gtk::ProgressBar::builder().valign(gtk::Align::Center).width_request(160).build();
-        let status = adw::ActionRow::builder().title(tr("Ready")).build();
-        status.add_suffix(&progress);
-        group.add(&status);
-        let start = gtk::Button::builder().label(tr("Start")).valign(gtk::Align::Center).css_classes(["pill", "suggested-action"]).build();
-        group.set_header_suffix(Some(&start));
+        let time = adw::PreferencesGroup::builder().title(tr("Time")).build();
+        time.add(&duration);
+        panel.append(&time);
+        panel.append(
+            &gtk::Label::builder()
+                .label(tr("Puts the chosen load on the processor and graphics card until the time is up or a limit is reached."))
+                .wrap(true)
+                .xalign(0.0)
+                .css_classes(["stress-sub"])
+                .build(),
+        );
+        let panel = gtk::ScrolledWindow::builder().hscrollbar_policy(gtk::PolicyType::Never).child(&panel).vexpand(true).build();
 
         let controls = TestControls {
-            group,
-            profile,
+            panel,
+            hero,
+            hero_title,
+            hero_subtitle,
+            profiles,
+            profile_name,
             threads: threads_row,
             cpu_load,
             gpu,
@@ -353,7 +396,6 @@ impl TestControls {
             gpu_load_row,
             duration,
             start,
-            status,
             progress,
             usable: gpus.iter().map(|(i, _, _)| *i).collect(),
             updating: Cell::new(true),
@@ -363,12 +405,15 @@ impl TestControls {
         let gpu_value = controls.gpu_load.value() as u32;
         let gpu_on = controls.gpu.as_ref().is_some_and(|row| (row.selected() as usize) < gpus.len());
         controls.gpu_load_row.set_sensitive(gpu_on);
-        let profile = PROFILES
-            .iter()
-            .position(|&(_, cpu, gpu)| all && cpu == app_config.cpu_load && gpu == gpu_value)
-            .map_or(0, |i| i + 1);
-        controls.profile.set_selected(profile as u32);
+        controls.show_profile(matching_profile(all, app_config.cpu_load, gpu_value));
         controls.updating.set(false);
         controls
+    }
+
+    fn show_profile(&self, profile: Option<usize>) {
+        for (i, button) in self.profiles.iter().enumerate() {
+            button.set_active(profile == Some(i));
+        }
+        self.profile_name.set_label(if profile.is_some() { "" } else { tr("Custom") });
     }
 }

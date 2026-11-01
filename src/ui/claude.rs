@@ -380,6 +380,17 @@ impl App {
             .icon_name("user-available-symbolic")
             .build();
 
+        let (hero, hero_title, hero_text, _) = super::status_hero();
+        let hero_group = adw::PreferencesGroup::new();
+        hero_group.add(&hero);
+        page.add(&hero_group);
+        let show_access = move |allowed: bool| {
+            hero.set_css_classes(&["status-hero", if allowed { "claude" } else { "idle" }]);
+            hero_title.set_label(if allowed { tr("Claude can run load tests") } else { tr("Claude has no access") });
+            hero_text.set_label(if allowed { tr("Your limits always apply") } else { tr("Turn on the switch below to give access") });
+        };
+        show_access(self.config.borrow().claude_control);
+
         let access = adw::PreferencesGroup::builder()
             .title(tr("Claude Integration (MCP)"))
             .description(tr("Lets Claude, in Claude Code or Claude Desktop, read the sensors and start, change and stop load tests, for example to tune fan curves together with Vifte. Everything is off until you turn it on here, and you can turn it off at any time."))
@@ -431,6 +442,7 @@ impl App {
             let Some(app) = weak.upgrade() else { return };
             app.config.borrow_mut().claude_control = row.is_active();
             app.config.borrow().save();
+            show_access(row.is_active());
         });
         let copy_to = |dialog: &adw::PreferencesDialog, text: String| {
             dialog.clipboard().set_text(&text);

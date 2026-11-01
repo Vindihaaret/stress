@@ -24,7 +24,9 @@ and [Vifte](https://github.com/Vindihaaret/vifte).
 * **Profiles** (full load, processor only, graphics card only, gaming, light load), durations from one
   minute to "until stopped", and levels that can be changed while a test runs.
 * **Live readings and 30-minute graphs**: processor temperature, utilization and power; per graphics card
-  temperature, utilization, power and fan; test periods are tinted in the graphs.
+  temperature, utilization, power and fan; test periods are tinted in the graphs. An overview at the top
+  shows the temperatures, power use and how far a test is from its limit, and the window takes on a soft
+  tint that follows the temperature (it can be turned off in the preferences).
 * **Power supply readings** where the power supply reports them (Corsair HXi/RMi/AXi): output to the
   computer, an estimate of the draw from the wall, the rest of the computer (motherboard, memory, disks,
   fans) and every rail's voltage, current and power.
@@ -48,7 +50,6 @@ integration.
 | Light | Dark |
 |---|---|
 | ![A load test running, light theme](docs/screenshots/test-light.png) | ![A load test running, dark theme](docs/screenshots/test-dark.png) |
-| ![Graphics card and power supply readings, light theme](docs/screenshots/readings-light.png) | ![Graphics card and power supply readings, dark theme](docs/screenshots/readings-dark.png) |
 | ![Safety settings, light theme](docs/screenshots/safety-light.png) | ![Safety settings, dark theme](docs/screenshots/safety-dark.png) |
 | ![Claude settings, light theme](docs/screenshots/claude-light.png) | ![Claude settings, dark theme](docs/screenshots/claude-dark.png) |
 
@@ -132,9 +133,9 @@ the app's own uninstaller removes the Claude Code registration.
 |---|---|
 | Profile | Full load (100/100), Processor only, Graphics card only, Gaming (40/95), Light load (25/25), or Custom |
 | Processor threads | How many of the processor's threads are loaded |
-| Processor load | Share of the time each loaded thread works, in 100 ms periods |
-| Graphics card | Which card to load; cards that cannot be used are listed with the reason |
-| Graphics card load | Share of the time the card works on the load |
+| Load (processor) | Share of the time each loaded thread works, in 100 ms periods |
+| Card | Which graphics card to load; cards that cannot be used are labelled with the reason |
+| Load (graphics card) | Share of the time the card works on the load |
 | Duration | 1–60 minutes, or until stopped (never longer than the longest test in the preferences) |
 
 The graphics card load is utilization – the share of the time the card is busy – as NVIDIA's and AMD's
@@ -290,8 +291,8 @@ stresstest mcp                 # the MCP server (normally started by Claude)
 
 `STRESS_SCREENSHOT=out.png STRESS_PAGE=preferences-safety stresstest` renders the window (optionally
 `preferences`, `preferences-claude` or `about`) to a PNG and quits – GNOME on Wayland does not let other
-programs capture windows. `STRESS_SCREENSHOT=out STRESS_PAGE=tour` idles 30 seconds, starts a test with
-the saved setup and writes `out-test.png` and `out-readings.png` after `STRESS_SCREENSHOT_DELAY` seconds; the
+programs capture windows. `STRESS_SCREENSHOT=out.png STRESS_PAGE=tour` idles 30 seconds, starts a test with
+the saved setup and writes the picture after `STRESS_SCREENSHOT_DELAY` seconds; the
 screenshots in `docs/screenshots` were made this way. Screenshot runs are a separate instance, so they
 work next to an open Stress.
 

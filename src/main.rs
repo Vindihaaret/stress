@@ -8,6 +8,7 @@ mod helpers;
 mod history;
 mod i18n;
 mod loadtest;
+mod look;
 mod mcp;
 mod nvml;
 mod sensors;
