@@ -156,7 +156,12 @@ These rules are enforced by Stress itself, for tests you start and for tests Cla
   Vifte's emergency temperature, and whenever Vifte switches to emergency mode, loses a fan curve's
   sensor or is paused. Stress reads this from Vifte's service; nothing needs to be set up.
 
-The checks run after every sensor reading on a background thread, so a busy window cannot delay them.
+* A test stops when the **temperature readings stop coming** – a reading that was there disappears, or
+  the sensors stop answering (a graphics driver in trouble can do that) – since the limits can then no
+  longer be checked.
+
+The checks run after every sensor reading on a background thread, so a busy window cannot delay them. A
+separate watchdog per test makes sure it ends on time even if that thread hangs.
 
 ## Sensors
 

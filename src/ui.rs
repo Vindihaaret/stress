@@ -614,6 +614,8 @@ impl App {
         app.install_actions();
         app.build_test_panel();
         app.tick();
+        // The window is not shown yet, so the first readings are put in by hand.
+        app.show_readings();
 
         // Holds the app alive; removed when the window closes.
         let strong = app.clone();
@@ -673,20 +675,26 @@ impl App {
         }
         glib::timeout_add_local_once(Duration::from_secs(delay), move || {
             let Some(app) = weak.upgrade() else { return };
+            let mut dialog: Option<adw::Dialog> = None;
             if page.as_deref() == Some("about") {
-                app.show_about();
+                dialog = Some(app.show_about().upcast());
             } else if page.as_deref() == Some("panel") {
                 app.split.set_show_sidebar(true);
             } else if let Some(prefs_page) = page.as_deref().and_then(|p| p.strip_prefix("preferences")) {
-                let dialog = app.show_preferences();
+                let preferences = app.show_preferences();
                 if let Some(name) = prefs_page.strip_prefix('-') {
-                    dialog.set_visible_page_name(name);
+                    preferences.set_visible_page_name(name);
                 }
+                dialog = Some(preferences.upcast());
             }
             let window = app.window.clone();
             let weak = Rc::downgrade(&app);
             glib::timeout_add_local_once(Duration::from_millis(1500), move || {
                 capture(&window, &path);
+                // A window with a dialog open closes the dialog instead of itself.
+                if let Some(dialog) = dialog {
+                    dialog.force_close();
+                }
                 if let Some(app) = weak.upgrade() {
                     app.force_close();
                 }
@@ -697,6 +705,13 @@ impl App {
     fn tick(&self) {
         self.update_test_status();
         self.sync_tray();
+        // In the status icon there is nothing to draw.
+        if self.window.is_visible() {
+            self.show_readings();
+        }
+    }
+
+    fn show_readings(&self) {
         let history = &self.machine.history;
         let tests = history.test_periods();
         for reading in &self.readings {
@@ -733,21 +748,32 @@ impl App {
             }
         }
 
-        let vifte = self.machine.vifte.lock().ok().and_then(|state| state.clone());
+        let vifte = self.vifte_state();
         let vifte_limit = vifte.as_ref().and_then(VifteState::limit).unwrap_or(f64::INFINITY);
+        let status = self.machine.controller.status();
         let (cpu_limit, gpu_limit, tint) = {
             let config = self.config.borrow();
-            (config.cpu_limit.min(vifte_limit), config.gpu_limit.min(vifte_limit), config.window_tint)
+            // A running test may have stricter limits than the preferences (set by Claude).
+            let (cpu, gpu) = match status {
+                crate::loadtest::Status::Running { limits, .. } => (limits.cpu, limits.gpu),
+                _ => (config.cpu_limit, config.gpu_limit),
+            };
+            (cpu.min(vifte_limit), gpu.min(vifte_limit), config.window_tint)
         };
         let mut readings = vec![(sample.cpu_temperature, cpu_limit)];
         readings.extend(self.usable.iter().map(|&i| (sample.gpus[i].temperature, gpu_limit)));
-        let idle = matches!(self.machine.controller.status(), crate::loadtest::Status::Idle);
+        let idle = matches!(status, crate::loadtest::Status::Idle);
         let limit_reached = idle
             && self.last_test.borrow().as_ref().is_some_and(|(_, f)| matches!(f.reason, StopReason::CpuLimit(_) | StopReason::GpuLimit(_)));
         self.overview.show_safety(&Safety { readings: &readings, vifte: vifte.as_ref(), limit_reached });
 
         let hottest = readings.iter().filter_map(|(t, _)| *t).reduce(f64::max);
         self.set_tint(tint.then_some(hottest).flatten());
+    }
+
+    /// Vifte's state as last read in the background (at most a few seconds old).
+    pub(crate) fn vifte_state(&self) -> Option<VifteState> {
+        self.machine.vifte.lock().ok().and_then(|state| state.clone())
     }
 
     fn set_tint(&self, temperature: Option<f64>) {
@@ -858,7 +884,7 @@ impl App {
         self.window.add_action_entries([preferences, about, check_update]);
     }
 
-    fn show_about(&self) {
+    fn show_about(&self) -> adw::AboutDialog {
         let about = adw::AboutDialog::builder()
             .application_name("Stress")
             .application_icon(APP_ID)
@@ -877,6 +903,7 @@ impl App {
             about.set_translator_credits(credits);
         }
         about.present(Some(&self.window));
+        about
     }
 
     fn show_preferences(self: &Rc<Self>) -> adw::PreferencesDialog {
@@ -1016,7 +1043,7 @@ impl App {
         let hero_group = adw::PreferencesGroup::new();
         hero_group.add(&hero);
         page.add(&hero_group);
-        let vifte_limit = self.machine.vifte.lock().ok().and_then(|state| state.as_ref().and_then(VifteState::limit));
+        let vifte_limit = self.vifte_state().as_ref().and_then(VifteState::limit);
         let show_protection = move |config: &Config| {
             let limit = config.cpu_limit.min(config.gpu_limit).min(vifte_limit.unwrap_or(f64::INFINITY));
             hero_text.set_label(&trf("Tests stop at {} · longest test {} minutes", &[&format(Some(limit), "°C", 0), &config.max_minutes]));
@@ -1058,7 +1085,7 @@ impl App {
         // Vifte's emergency temperature also limits tests while it runs.
         let fans = adw::PreferencesGroup::builder().title(tr("Fan Control")).build();
         let vifte_row = adw::ActionRow::builder().title("Vifte").build();
-        match self.machine.vifte.lock().ok().and_then(|state| state.clone()) {
+        match self.vifte_state() {
             Some(state) => {
                 vifte_row.set_subtitle(&match state.limit() {
                     Some(limit) => trf("Running. Tests also stop at {} °C, 5 °C below Vifte's emergency temperature, and whenever Vifte reports a problem.", &[&limit]),

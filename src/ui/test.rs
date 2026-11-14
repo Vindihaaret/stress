@@ -96,6 +96,7 @@ pub fn reason_text(finished: &Finished) -> String {
         StopReason::VifteEmergency => trf("Stopped after {}: Vifte switched to emergency mode", &[&ran]),
         StopReason::VifteSensorLost => trf("Stopped after {}: Vifte lost a fan curve's temperature sensor", &[&ran]),
         StopReason::ViftePaused => trf("Stopped after {}: Vifte's fan control is paused", &[&ran]),
+        StopReason::SensorsLost => trf("Stopped after {}: the temperature readings stopped coming", &[&ran]),
     }
 }
 

@@ -106,8 +106,13 @@ impl Config {
         if let Some(dir) = path.parent() {
             let _ = fs::create_dir_all(dir);
         }
+        // Written beside the file and moved into place, so a crash cannot
+        // leave half a file (which would reset every setting).
         if let Ok(text) = serde_json::to_string_pretty(self) {
-            let _ = fs::write(path, text);
+            let temporary = path.with_extension("json.tmp");
+            if fs::write(&temporary, text).is_ok() {
+                let _ = fs::rename(temporary, path);
+            }
         }
     }
 }

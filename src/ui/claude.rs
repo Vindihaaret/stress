@@ -19,7 +19,6 @@ use serde_json::{json, Map, Value};
 use super::{App, CURRENT};
 use crate::i18n::{tr, trf};
 use crate::loadtest::{Finished, Levels, Limits, Status, StopReason};
-use crate::vifte;
 
 pub const OBJECT_PATH: &str = "/io/github/stresstest/Stress/Claude";
 pub const INTERFACE: &str = "io.github.stresstest.Claude";
@@ -130,6 +129,18 @@ fn number(args: &Map<String, Value>, key: &str) -> Result<Option<f64>, String> {
     }
 }
 
+/// Evenly spaced entries, at most `max`, always ending with the newest.
+fn thin<T: Clone>(entries: Vec<T>, max: usize) -> Vec<T> {
+    if entries.len() <= max {
+        return entries;
+    }
+    let last = entries.len() - 1;
+    if max < 2 {
+        return vec![entries[last].clone()];
+    }
+    (0..max).map(|i| entries[i * last / (max - 1)].clone()).collect()
+}
+
 fn finished_json(finished: &Finished) -> Value {
     let (reason, temperature, message) = match &finished.reason {
         StopReason::User => ("stopped", None, None),
@@ -142,6 +153,7 @@ fn finished_json(finished: &Finished) -> Value {
         StopReason::VifteEmergency => ("vifte_emergency_mode", None, None),
         StopReason::VifteSensorLost => ("vifte_sensor_lost", None, None),
         StopReason::ViftePaused => ("vifte_paused", None, None),
+        StopReason::SensorsLost => ("temperature_readings_lost", None, None),
     };
     json!({ "reason": reason, "ran_s": finished.ran.as_secs(), "temperature_c": temperature, "message": message })
 }
@@ -190,7 +202,7 @@ impl App {
         let psu = sample.psu.as_ref().map(|p| {
             json!({ "name": p.name, "output_w": r1(Some(p.output)), "from_wall_estimate_w": r1(p.input_estimate) })
         });
-        let vifte = match vifte::state() {
+        let vifte = match self.vifte_state() {
             Some(v) => json!({
                 "running": true, "emergency_c": v.emergency_temp, "test_limit_c": v.limit(),
                 "emergency_active": v.emergency_active, "sensor_lost": v.sensor_lost, "paused": v.paused,
@@ -200,13 +212,14 @@ impl App {
         let test = match machine.controller.status() {
             Status::Idle => json!({ "state": "idle" }),
             Status::Starting => json!({ "state": "starting" }),
-            Status::Running { started, ends, levels } => json!({
+            Status::Running { started, ends, levels, limits } => json!({
                 "state": "running",
                 "started_by": if self.claude_started.get() { "claude" } else { "user" },
                 "elapsed_s": Instant::now().saturating_duration_since(started).as_secs(),
                 "duration_s": ends.duration_since(started).as_secs(),
                 "cpu_threads": levels.cpu_threads, "cpu_load": levels.cpu_load,
                 "gpu": levels.gpu.map(|i| machine.gpus[i].pci.clone()), "gpu_load": levels.gpu_load,
+                "cpu_limit_c": limits.cpu, "gpu_limit_c": limits.gpu,
             }),
         };
         let status = json!({
@@ -232,10 +245,7 @@ impl App {
         let minutes = number(args, "minutes")?.unwrap_or(10.0).clamp(1.0, 30.0);
         let max_points = whole(args, "max_points", 1, 600)?.unwrap_or(60) as usize;
         let mut entries = self.machine.history.recent(Duration::from_secs_f64(minutes * 60.0));
-        if entries.len() > max_points {
-            let step = entries.len() as f64 / max_points as f64;
-            entries = (0..max_points).map(|i| entries[(i as f64 * step) as usize].clone()).collect();
-        }
+        entries = thin(entries, max_points);
         let column = |value: &dyn Fn(&crate::sensors::Sample) -> Option<f64>| -> Vec<Value> {
             entries.iter().map(|(_, sample, _)| r1(value(sample))).collect()
         };
@@ -325,7 +335,7 @@ impl App {
             text += &format!(", {} at {} % utilization", machine.gpus[i].name, levels.gpu_load);
         }
         text += &format!(". Stops at processor {} °C or graphics card {} °C", limits.cpu, limits.gpu);
-        if let Some(limit) = vifte::state().and_then(|v| v.limit()) {
+        if let Some(limit) = self.vifte_state().and_then(|v| v.limit()) {
             text += &format!(", and at {limit} °C for Vifte");
         }
         text += ".";
@@ -495,5 +505,19 @@ pub fn unregister_from_claude_code() {
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .status();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::thin;
+
+    #[test]
+    fn thinning_keeps_the_ends() {
+        let all: Vec<u32> = (0..100).collect();
+        assert_eq!(thin(all.clone(), 200), all);
+        assert_eq!(thin(all.clone(), 1), [99]);
+        assert_eq!(thin(all.clone(), 4), [0, 33, 66, 99]);
+        assert_eq!(thin(all, 60).len(), 60);
     }
 }
