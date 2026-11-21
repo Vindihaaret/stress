@@ -1,6 +1,7 @@
 //! The look of the main window, shared with Vifte: colour tokens for light
 //! and dark, static "glass" (a dark or light background with a faint blue
-//! glow and half-transparent cards), and Vifte's orange as the accent.
+//! glow and half-transparent cards), and GNOME's accent colour (Vifte's
+//! orange where the system has none).
 //! Dialogs stay outside the glass and keep the plain, solid look.
 //!
 //! Only `@define-color`, `alpha()` and `mix()`: `var()` and `color-mix()` need
@@ -21,8 +22,6 @@ const PALETTE: &[(&str, &str, &str)] = &[
     ("stress_gpu_surface", "#9A6236", "#9A6236"),
     ("stress_neutral", "#DCDEE3", "#2E3138"),
     ("stress_neutral_surface", "#4A505C", "#5B616C"),
-    ("stress_accent", "#F0A400", "#C47F00"),
-    ("stress_accent_text", "#F5B83D", "#8F5D00"),
     ("stress_text", "#F5F5F7", "#1D1D1F"),
     ("stress_sub", "#B4B8C2", "#55585E"),
     ("stress_sidebar", "alpha(white, 0.075)", "alpha(white, 0.62)"),
@@ -30,8 +29,6 @@ const PALETTE: &[(&str, &str, &str)] = &[
     ("stress_fill", "alpha(white, 0.08)", "alpha(black, 0.055)"),
     ("stress_track", "alpha(white, 0.10)", "alpha(black, 0.08)"),
     ("stress_line", "alpha(white, 0.09)", "alpha(black, 0.08)"),
-    ("stress_selected", "alpha(#F0A400, 0.20)", "alpha(#C47F00, 0.16)"),
-    ("stress_band", "alpha(#F0A400, 0.07)", "alpha(#C47F00, 0.08)"),
     ("stress_stop", "alpha(#E01B24, 0.22)", "alpha(#E01B24, 0.12)"),
     ("stress_stop_text", "#FF8A80", "#B3141B"),
     ("stress_calm", "#2EC27E", "#2EC27E"),
@@ -199,19 +196,86 @@ thread_local! {
     static PALETTE_PROVIDER: RefCell<Option<gtk::CssProvider>> = const { RefCell::new(None) };
 }
 
+/// The system's accent colour (GNOME Settings → Appearance), when the
+/// desktop offers one and libadwaita is 1.6 or newer.
+fn system_accent(style: &adw::StyleManager) -> Option<gdk::RGBA> {
+    style.find_property("accent-color-rgba")?;
+    if !style.property::<bool>("system-supports-accent-colors") {
+        return None;
+    }
+    Some(style.property::<gdk::RGBA>("accent-color-rgba"))
+}
+
+fn srgb_to_linear(c: f64) -> f64 {
+    if c <= 0.04045 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) }
+}
+
+fn linear_to_srgb(c: f64) -> f64 {
+    let c = if c <= 0.003_130_8 { c * 12.92 } else { 1.055 * c.powf(1.0 / 2.4) - 0.055 };
+    c.clamp(0.0, 1.0)
+}
+
+/// The accent as text on the window, the way libadwaita makes it: the same
+/// colour in OKLab, lighter in dark mode and darker in light mode.
+fn standalone(rgb: [f64; 3], dark: bool) -> [f64; 3] {
+    let [r, g, b] = rgb.map(srgb_to_linear);
+    let l = (0.412_221_470_8 * r + 0.536_332_536_3 * g + 0.051_445_992_9 * b).cbrt();
+    let m = (0.211_903_498_2 * r + 0.680_699_545_1 * g + 0.107_396_956_6 * b).cbrt();
+    let s = (0.088_302_461_9 * r + 0.281_718_837_6 * g + 0.629_978_700_5 * b).cbrt();
+    let lightness = 0.210_454_255_3 * l + 0.793_617_785 * m - 0.004_072_046_8 * s;
+    let a = 1.977_998_495_1 * l - 2.428_592_205 * m + 0.450_593_709_9 * s;
+    let bb = 0.025_904_037_1 * l + 0.782_771_766_2 * m - 0.808_675_766 * s;
+    let lightness = if dark { lightness.max(0.85) } else { lightness.min(0.5) };
+    let l = (lightness + 0.396_337_777_4 * a + 0.215_803_757_3 * bb).powi(3);
+    let m = (lightness - 0.105_561_345_8 * a - 0.063_854_172_8 * bb).powi(3);
+    let s = (lightness - 0.089_484_177_5 * a - 1.291_485_548 * bb).powi(3);
+    [
+        4.076_741_662_1 * l - 3.307_711_591_3 * m + 0.230_969_929_2 * s,
+        -1.268_438_004_6 * l + 2.609_757_401_1 * m - 0.341_319_396_5 * s,
+        -0.004_196_086_3 * l - 0.703_418_614_7 * m + 1.707_614_701 * s,
+    ]
+    .map(linear_to_srgb)
+}
+
+fn hex(rgb: [f64; 3]) -> String {
+    let [r, g, b] = rgb.map(|c| (c.clamp(0.0, 1.0) * 255.0).round() as u8);
+    format!("#{r:02X}{g:02X}{b:02X}")
+}
+
 /// The colour tokens and the accent for light or dark.
-fn palette_css(dark: bool) -> String {
+fn palette_css(style: &adw::StyleManager) -> String {
+    let dark = style.is_dark();
     let mut css: String = PALETTE
         .iter()
         .map(|(name, d, l)| format!("@define-color {name} {};\n", if dark { d } else { l }))
         .collect();
-    let (accent, text) = if dark { ("#F0A400", "#F5B83D") } else { ("#C47F00", "#8F5D00") };
-    css += &format!("@define-color accent_bg_color {accent};\n@define-color accent_color {text};\n@define-color accent_fg_color {ACCENT_FG};\n");
+    let (accent, text, fg) = match system_accent(style) {
+        Some(rgba) => {
+            let rgb = [rgba.red(), rgba.green(), rgba.blue()].map(f64::from);
+            (hex(rgb), hex(standalone(rgb, dark)), "#FFFFFF")
+        }
+        None if dark => ("#F0A400".to_owned(), "#F5B83D".to_owned(), ACCENT_FG),
+        None => ("#C47F00".to_owned(), "#8F5D00".to_owned(), ACCENT_FG),
+    };
+    let (selected, band) = if dark { (0.20, 0.07) } else { (0.16, 0.08) };
+    css += &format!(
+        "@define-color stress_accent {accent};\n@define-color stress_accent_text {text};\n\
+         @define-color stress_selected alpha({accent}, {selected});\n@define-color stress_band alpha({accent}, {band});\n"
+    );
+    css += &format!("@define-color accent_bg_color {accent};\n@define-color accent_color {text};\n@define-color accent_fg_color {fg};\n");
     // From GTK 4.16, libadwaita 1.6 reads the accent from CSS variables.
     if gtk::check_version(4, 16, 0).is_none() {
-        css += &format!(":root {{ --accent-bg-color: {accent}; --accent-color: {text}; --accent-fg-color: {ACCENT_FG}; }}\n");
+        css += &format!(":root {{ --accent-bg-color: {accent}; --accent-color: {text}; --accent-fg-color: {fg}; }}\n");
     }
     css
+}
+
+fn reload_palette(style: &adw::StyleManager) {
+    PALETTE_PROVIDER.with(|p| {
+        if let Some(provider) = p.borrow().as_ref() {
+            provider.load_from_string(&palette_css(style));
+        }
+    });
 }
 
 pub fn load_css() {
@@ -222,15 +286,16 @@ pub fn load_css() {
 
     let palette = gtk::CssProvider::new();
     let style = adw::StyleManager::default();
-    palette.load_from_string(&palette_css(style.is_dark()));
+    palette.load_from_string(&palette_css(&style));
     gtk::style_context_add_provider_for_display(&display, &palette, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
-    style.connect_dark_notify(|style| {
-        PALETTE_PROVIDER.with(|p| {
-            if let Some(provider) = p.borrow().as_ref() {
-                provider.load_from_string(&palette_css(style.is_dark()));
-            }
-        });
-    });
+    style.connect_dark_notify(reload_palette);
+    // The accent can change while Stress runs (GNOME Settings → Appearance).
+    // libadwaita learns whether the desktop has accents a moment after start.
+    for name in ["accent-color-rgba", "system-supports-accent-colors"] {
+        if style.find_property(name).is_some() {
+            style.connect_notify_local(Some(name), |style, _| reload_palette(style));
+        }
+    }
     PALETTE_PROVIDER.with(|p| *p.borrow_mut() = Some(palette));
 }
 
@@ -253,4 +318,21 @@ pub fn follow_style(root: &impl IsA<gtk::Widget>) {
     let a = apply.clone();
     style.connect_dark_notify(move |s| a(s));
     style.connect_high_contrast_notify(move |s| apply(s));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn standalone_matches_libadwaita() {
+        // GNOME's blue #3584E4: libadwaita's text colour is #81D0FF in dark and #0461BE in light.
+        let blue = [0x35, 0x84, 0xE4].map(|c| f64::from(c) / 255.0);
+        for (dark, want) in [(true, [0x81, 0xD0, 0xFF]), (false, [0x04, 0x61, 0xBE])] {
+            let got = standalone(blue, dark).map(|c| (c * 255.0).round() as i32);
+            for (g, w) in got.iter().zip(want) {
+                assert!((g - w).abs() <= 3, "{dark}: {got:?} vs {want:?}");
+            }
+        }
+    }
 }

@@ -14,7 +14,7 @@ utilization, fan speed and power use, with graphs of the last 30 minutes. Use it
 computer stays cool, to compare cooling changes, or to tune fan curves – by hand, or together with Claude
 and [Vifte](https://github.com/Vindihaaret/vifte).
 
-* **Native GTK 4 / libadwaita interface** that fits into GNOME, follows the light/dark theme and also runs
+* **Native GTK 4 / libadwaita interface** that fits into GNOME, follows the light/dark theme and GNOME's accent colour, and also runs
   on KDE Plasma.
 * **Processor load** on as many threads as you choose, at a chosen share of the time (1–100 %). Dense
   vector arithmetic, so the load produces real heat – no stress-ng needed.
