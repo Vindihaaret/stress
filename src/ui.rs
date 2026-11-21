@@ -1,12 +1,14 @@
-//! Main window: an overview, a section per device (processor, each graphics
-//! card, the power supply) with reading cards that graph the last 30 minutes,
-//! and the load test panel at the side; plus preferences, about and
-//! uninstalling.
+//! Main window, in the same design as Vifte: a sidebar with the pages
+//! (Overview, Load Test, and one per kind of hardware), a status card for
+//! the test and Preferences; each page has a large title and the Start/Stop
+//! button in its header. Also preferences, about and uninstalling.
 
 pub mod claude;
+mod devices;
 mod graph;
 mod helpers;
 mod overview;
+mod style;
 mod test;
 mod update;
 
@@ -16,108 +18,29 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use adw::prelude::*;
-use gtk::{gdk, gio, glib};
+use gtk::{gio, glib};
 
 use crate::config::{self, Appearance, Config};
-use crate::devices::{self, Gpu};
+use crate::devices::{self as hardware, Gpu};
 use crate::history::History;
 use crate::i18n::{self, n_, tr, trf};
 use crate::loadtest::{Controller, StopReason};
 use crate::sensors::{format, PsuReading, Sample, Sensors};
 use crate::vifte::{self, VifteState};
 use crate::{look, tray, APP_ID};
-use graph::{tile, Card, Scale};
-use overview::{Overview, Safety};
-use test::TestControls;
+use devices::ReadingRow;
+use graph::{HistoryGraph, Tone};
+use overview::Overview;
+use test::{TestControls, TestView};
 
 pub use claude::{register as register_claude, unregister_from_claude_code};
+pub use style::load_css;
 pub use update::start_auto_checks as start_update_checks;
 
 const REFRESH_INTERVAL: Duration = Duration::from_secs(1);
 const VIFTE_INTERVAL: Duration = Duration::from_secs(5);
 const APPEARANCES: [Appearance; 3] = [Appearance::System, Appearance::Light, Appearance::Dark];
 const APPEARANCE_LABELS: [&str; 3] = [n_("Follow system"), n_("Light"), n_("Dark")];
-
-const CSS: &str = r#"
-.reading { font-feature-settings: "tnum"; }
-.stress-tile { padding: 13px 15px; }
-.stress-tile-title { font-size: 13px; font-weight: 600; opacity: 0.75; }
-.stress-value { font-size: 26px; font-weight: 700; letter-spacing: -0.4px; font-feature-settings: "tnum"; }
-.stress-large .stress-value { font-size: 32px; }
-.stress-text-value { font-size: 20px; font-weight: 700; margin-top: 8px; }
-.stress-sub { font-size: 12.5px; opacity: 0.62; font-feature-settings: "tnum"; }
-.stress-section { font-size: 14.5px; font-weight: 700; }
-.stress-chip { font-size: 11.5px; font-weight: 700; padding: 1px 8px; border-radius: 99px; background-color: alpha(currentColor, 0.1); }
-.stress-dot { min-width: 7px; min-height: 7px; border-radius: 99px; background-color: @success_color; }
-.stress-dot.warm { background-color: @warning_color; }
-.stress-dot.hot { background-color: @error_color; }
-.stress-slim { padding: 5px 12px; border-radius: 99px; font-size: 13px; box-shadow: inset 0 0 0 1px alpha(currentColor, 0.1); }
-.stress-slim-dot { min-width: 7px; min-height: 7px; border-radius: 99px; box-shadow: inset 0 0 0 1.5px alpha(currentColor, 0.5); }
-.stress-details { font-size: 13px; }
-.status-hero {
-  padding: 12px 14px;
-  border-radius: 14px;
-  box-shadow: inset 0 0 0 1px alpha(currentColor, 0.08);
-  background-image: linear-gradient(115deg, alpha(@success_color, 0.18), alpha(currentColor, 0.04));
-}
-.status-hero.idle { background-image: linear-gradient(115deg, alpha(currentColor, 0.1), alpha(currentColor, 0.04)); }
-.status-hero.running { background-image: linear-gradient(115deg, alpha(@accent_color, 0.18), alpha(currentColor, 0.04)); }
-.status-hero.stopped { background-image: linear-gradient(115deg, alpha(@error_color, 0.18), alpha(currentColor, 0.04)); }
-.status-hero.claude { background-image: linear-gradient(115deg, alpha(#d97757, 0.24), alpha(currentColor, 0.04)); }
-.status-hero-dot { min-width: 10px; min-height: 10px; border-radius: 99px; background-color: @success_color; }
-.status-hero.idle .status-hero-dot { background-color: alpha(currentColor, 0.5); }
-.status-hero.running .status-hero-dot { background-color: @accent_color; }
-.status-hero.stopped .status-hero-dot { background-color: @error_color; }
-.status-hero.claude .status-hero-dot { background-color: #d97757; }
-.status-hero-title { font-size: 15px; font-weight: 700; }
-.status-hero-text { font-size: 13px; opacity: 0.75; font-feature-settings: "tnum"; }
-.stress-go { padding: 10px; border-radius: 12px; font-size: 15px; font-weight: 700; }
-.stress-profile {
-  padding: 7px 4px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  background-color: alpha(currentColor, 0.06);
-  box-shadow: inset 0 0 0 1px alpha(currentColor, 0.08);
-}
-.stress-profile:hover { background-color: alpha(currentColor, 0.11); }
-.stress-profile:checked { background-color: @accent_bg_color; color: @accent_fg_color; box-shadow: none; }
-.stress-profile-load { font-size: 11.5px; font-weight: 400; opacity: 0.7; font-feature-settings: "tnum"; }
-
-/* The main window: layered cards on a soft tint. Dialogs stay outside and keep the plain look. */
-.stress-main { transition: background-image 1200ms ease; }
-.stress-main headerbar { background: none; box-shadow: none; }
-.stress-main flowboxchild { padding: 0; background: none; }
-.stress-main .stress-tile, .stress-main list.boxed-list {
-  background-color: alpha(white, 0.065);
-  border-radius: 16px;
-  box-shadow: inset 0 1px alpha(white, 0.09), inset 0 0 0 1px alpha(white, 0.07), 0 6px 20px alpha(black, 0.16);
-}
-.stress-light .stress-tile, .stress-light list.boxed-list {
-  background-color: alpha(white, 0.74);
-  box-shadow: inset 0 0 0 1px alpha(black, 0.06), 0 6px 18px alpha(black, 0.07);
-}
-.stress-main list.boxed-list > row:first-child { border-top-left-radius: 16px; border-top-right-radius: 16px; }
-.stress-main list.boxed-list > row:last-child { border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; }
-.stress-docked > .sidebar-pane { background-color: alpha(black, 0.2); box-shadow: inset 1px 0 alpha(white, 0.07); }
-.stress-docked.stress-light > .sidebar-pane { background-color: alpha(white, 0.38); box-shadow: inset 1px 0 alpha(black, 0.07); }
-.stress-tint-cool { background-image: radial-gradient(farthest-side at 10% 0, alpha(#4a8fd0, 0.30), transparent); }
-.stress-tint-mild { background-image: radial-gradient(farthest-side at 10% 0, alpha(#48a89a, 0.28), transparent); }
-.stress-tint-warm { background-image: radial-gradient(farthest-side at 10% 0, alpha(#d9a03a, 0.30), transparent); }
-.stress-tint-hot { background-image: radial-gradient(farthest-side at 10% 0, alpha(#de6a3a, 0.34), transparent); }
-"#;
-
-pub fn load_css() {
-    let provider = gtk::CssProvider::new();
-    provider.load_from_string(CSS);
-    if let Some(display) = gdk::Display::default() {
-        gtk::style_context_add_provider_for_display(
-            &display,
-            &provider,
-            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-        );
-    }
-}
 
 pub fn apply_appearance(appearance: Appearance) {
     let scheme = match appearance {
@@ -131,7 +54,7 @@ pub fn apply_appearance(appearance: Appearance) {
 /// The hardware and its sensor history. Kept for the whole run, so the
 /// history survives the window being rebuilt for a language change.
 struct Machine {
-    cpu: devices::Cpu,
+    cpu: hardware::Cpu,
     gpus: Vec<Gpu>,
     history: History,
     controller: Controller,
@@ -174,13 +97,7 @@ pub fn start_tray(application: &adw::Application) {
                 (tray::Command::Quit, None) => application.quit(),
                 (tray::Command::Show, Some(app)) => app.window.present(),
                 (tray::Command::Show, None) => application.activate(),
-                (tray::Command::StartStop, Some(app)) => {
-                    match app.machine.controller.status() {
-                        crate::loadtest::Status::Idle => app.start_test(),
-                        _ => app.machine.controller.stop(),
-                    }
-                    app.update_test_status();
-                }
+                (tray::Command::StartStop, Some(app)) => app.start_or_stop(),
                 (tray::Command::StartStop, None) => {}
             }
         }
@@ -191,8 +108,8 @@ fn machine() -> Rc<Machine> {
     MACHINE.with(|machine| {
         machine
             .get_or_init(|| {
-                let cpu = devices::cpu();
-                let gpus = devices::gpus();
+                let cpu = hardware::cpu();
+                let gpus = hardware::gpus();
                 let mut sensors = Sensors::new(&gpus);
                 let first = sensors.sample();
                 let controller = Controller::new(gpus.iter().map(|g| g.pci.clone()).collect());
@@ -224,18 +141,34 @@ pub fn activate(application: &adw::Application) {
 struct Carry {
     size: (i32, i32),
     maximized: bool,
+    page: String,
 }
 
 /// Picks one reading out of a sample.
-type ValueFn = Box<dyn Fn(&Sample) -> Option<f64>>;
+type ValueFn = Rc<dyn Fn(&Sample) -> Option<f64>>;
 
-/// A card and the reading it shows.
+/// A row and the reading it shows.
 struct Reading {
-    card: Card,
+    row: ReadingRow,
     value: ValueFn,
 }
 
-/// Power supply details that have no card of their own.
+/// Which limit a graph shows.
+#[derive(Clone, Copy)]
+enum LimitOf {
+    Cpu,
+    Gpu,
+    Nearest,
+}
+
+/// A temperature graph and what it draws.
+struct Graph {
+    graph: HistoryGraph,
+    series: Vec<(Tone, ValueFn)>,
+    limit: LimitOf,
+}
+
+/// Power supply details that have no row of their own.
 struct PsuLabels {
     input_volts: gtk::Label,
     temperature: gtk::Label,
@@ -243,17 +176,37 @@ struct PsuLabels {
     rails: Vec<gtk::Label>,
 }
 
+/// The status card at the bottom of the sidebar.
+struct SidebarStatus {
+    button: gtk::Button,
+    icon: gtk::Image,
+    title: gtk::Label,
+    text: gtk::Label,
+    progress: gtk::ProgressBar,
+}
+
+/// A page: (name, title, icon).
+type PageInfo = (&'static str, &'static str, &'static [&'static str]);
+
 pub struct App {
     window: adw::ApplicationWindow,
-    title: adw::WindowTitle,
     toasts: adw::ToastOverlay,
-    split: adw::OverlaySplitView,
-    overview: Rc<Overview>,
+    split: adw::NavigationSplitView,
+    stack: adw::ViewStack,
+    content_page: adw::NavigationPage,
+    nav: gtk::ListBox,
+    nav_rows: Vec<(&'static str, gtk::ListBoxRow)>,
+    test_dot: gtk::Box,
+    page_title: gtk::Label,
+    page_subtitle: gtk::Label,
+    header_start: gtk::Button,
+    status: SidebarStatus,
+    overview: Overview,
     /// The readings that drive the overview: graphics cards that can be used.
     usable: Vec<usize>,
     tint: Cell<Option<&'static str>>,
     test: TestControls,
-    /// How the last test ended, as shown under the panel.
+    /// How the last test ended, as shown on the Load Test page.
     last_test: RefCell<Option<(String, crate::loadtest::Finished)>>,
     /// The running test was started by Claude.
     claude_started: Cell<bool>,
@@ -267,25 +220,23 @@ pub struct App {
     hidden_notice_shown: Cell<bool>,
     /// Last state pushed to the status icon, to avoid needless D-Bus updates.
     tray_state: RefCell<Option<tray::State>>,
+    /// Controls on the overview are being set from code.
+    syncing: Cell<bool>,
+    /// The test's state as last shown, for the overview's subtitle.
+    test_line: RefCell<Option<String>>,
+    /// The nearest limit as last shown, for the status card.
+    nearest: Cell<Option<f64>>,
     config: RefCell<Config>,
     machine: Rc<Machine>,
     readings: Vec<Reading>,
+    graphs: Vec<Graph>,
+    power_value: ValueFn,
     psu: Option<PsuLabels>,
     refresh_source: RefCell<Option<glib::SourceId>>,
 }
 
-/// Adds a line to the power supply's details and returns its value label.
-fn detail(grid: &gtk::Grid, title: &str) -> gtk::Label {
-    let row = grid.observe_children().n_items() as i32 / 2;
-    grid.attach(&gtk::Label::builder().label(title).halign(gtk::Align::Start).css_classes(["stress-sub"]).build(), 0, row, 1, 1);
-    // A small natural width, so these do not push the card onto a line of its own.
-    let label = gtk::Label::builder().xalign(1.0).hexpand(true).max_width_chars(8).ellipsize(gtk::pango::EllipsizeMode::Start).css_classes(["reading"]).build();
-    grid.attach(&label, 1, row, 1, 1);
-    label
-}
-
 /// A status card with a dot; returns it with its title, its text and the box
-/// holding both, for anything more to go under them.
+/// holding both, for anything more to go under them. Used in the preferences.
 pub(crate) fn status_hero() -> (gtk::Box, gtk::Label, gtk::Label, gtk::Box) {
     let hero = gtk::Box::builder().spacing(12).css_classes(["status-hero"]).build();
     hero.append(&gtk::Box::builder().valign(gtk::Align::Center).css_classes(["status-hero-dot"]).build());
@@ -298,53 +249,18 @@ pub(crate) fn status_hero() -> (gtk::Box, gtk::Label, gtk::Label, gtk::Box) {
     (hero, title, subtitle, text)
 }
 
-/// A heading for one device, followed by a grid for its cards.
-fn section(content: &gtk::Box, title: &str, subtitle: &str) -> gtk::FlowBox {
-    let heading = gtk::Box::builder().spacing(12).margin_top(4).build();
-    heading.append(
-        &gtk::Label::builder()
-            .label(title)
-            .halign(gtk::Align::Start)
-            .ellipsize(gtk::pango::EllipsizeMode::End)
-            .tooltip_text(title)
-            .css_classes(["stress-section"])
-            .build(),
-    );
-    if !subtitle.is_empty() {
-        heading.append(
-            &gtk::Label::builder()
-                .label(subtitle)
-                .halign(gtk::Align::End)
-                .hexpand(true)
-                .ellipsize(gtk::pango::EllipsizeMode::End)
-                .tooltip_text(subtitle)
-                .css_classes(["stress-sub"])
-                .build(),
-        );
-    }
-    content.append(&heading);
-    let grid = gtk::FlowBox::builder()
-        .selection_mode(gtk::SelectionMode::None)
-        .homogeneous(true)
-        .min_children_per_line(1)
-        .column_spacing(12)
-        .row_spacing(12)
-        .build();
-    content.append(&grid);
-    grid
+/// A row in the sidebar: icon and title.
+fn nav_row(title: &str, icon: &[&str]) -> (gtk::ListBoxRow, gtk::Box) {
+    let content = gtk::Box::builder().spacing(12).build();
+    content.append(&graph::image(icon, 16));
+    content.append(&gtk::Label::builder().label(title).xalign(0.0).hexpand(true).ellipsize(gtk::pango::EllipsizeMode::End).build());
+    (gtk::ListBoxRow::builder().child(&content).build(), content)
 }
 
-/// Puts all of a section's cards on one line when they fit.
-fn fill_row(grid: &gtk::FlowBox) {
-    grid.set_max_children_per_line(grid.observe_children().n_items().max(1));
-}
-
-/// A small label for something that takes no room of its own.
-fn slim(text: &str, tooltip: &str) -> gtk::Box {
-    let label = gtk::Box::builder().spacing(7).tooltip_text(tooltip).css_classes(["stress-slim"]).build();
-    label.append(&gtk::Box::builder().valign(gtk::Align::Center).css_classes(["stress-slim-dot"]).build());
-    label.append(&gtk::Label::builder().label(text).ellipsize(gtk::pango::EllipsizeMode::End).build());
-    label
+/// A temperature with one decimal and the language's decimal separator.
+fn degrees(value: Option<f64>) -> String {
+    // Translators: the decimal separator.
+    format(value, "°C", 1).replace('.', tr("."))
 }
 
 impl App {
@@ -367,49 +283,10 @@ impl App {
             .height_request(400)
             .build();
 
-        let title = adw::WindowTitle::new("Stress", "");
-        let header = adw::HeaderBar::new();
-        header.set_title_widget(Some(&title));
-        let menu = gio::Menu::new();
-        menu.append(Some(tr("Preferences")), Some("win.preferences"));
-        menu.append(Some(tr("Check for Updates…")), Some("win.check-update"));
-        menu.append(Some(tr("About Stress")), Some("win.about"));
-        let quit = gio::Menu::new();
-        quit.append(Some(tr("Quit")), Some("app.quit"));
-        menu.append_section(None, &quit);
-        let menu_button = |primary: bool| {
-            gtk::MenuButton::builder()
-                .icon_name("open-menu-symbolic")
-                .menu_model(&menu)
-                .primary(primary)
-                .tooltip_text(tr("Main Menu"))
-                .build()
-        };
-        // The panel holds the menu; when it is hidden, the window's own header does.
-        let header_menu = menu_button(false);
-        header_menu.set_visible(false);
-        header.pack_end(&header_menu);
-        let panel_toggle = gtk::ToggleButton::builder()
-            .icon_name("sidebar-show-right-symbolic")
-            .tooltip_text(tr("Load Test"))
-            .visible(false)
-            .build();
-        header.pack_end(&panel_toggle);
-
-        let content = gtk::Box::builder()
-            .orientation(gtk::Orientation::Vertical)
-            .spacing(10)
-            .margin_top(4)
-            .margin_bottom(18)
-            .margin_start(20)
-            .margin_end(20)
-            .build();
-        let mut readings = Vec::new();
         // The newest sample, so a rebuilt window shows readings that became
         // available since the start (such as the processor's power).
         let latest = machine.history.latest();
         let first = latest.as_ref().unwrap_or(&machine.first);
-
         let loadable: Vec<(usize, String, String)> = machine
             .gpus
             .iter()
@@ -417,177 +294,260 @@ impl App {
             .filter(|(_, g)| g.unavailable_reason().is_none())
             .map(|(i, g)| (i, g.name.clone(), g.pci.clone()))
             .collect();
-        let test = TestControls::new(&config, machine.cpu.threads, &loadable);
         let usable: Vec<usize> = loadable.iter().map(|(i, _, _)| *i).collect();
+        let test = TestControls::new(&config, machine.cpu.threads, &loadable);
+        let first_gpu = usable.first().copied();
+        let has_rest = first.psu.is_some() && first.cpu_power.is_some() && usable.iter().all(|&i| first.gpus[i].power.is_some());
+        let overview = Overview::new(first_gpu.map(|i| machine.gpus[i].name.as_str()), first.psu.is_some(), has_rest, config::MAX_MINUTES_RANGE);
 
-        // The overview: the first graphics card that can be used shares the
-        // top row with the processor.
-        let cpu_temperature = Card::temperature(tr("Processor"));
-        let gpu_temperature = usable.first().map(|_| Card::temperature(tr("Graphics card")));
-        let overview = Rc::new(Overview::new(
-            cpu_temperature.widget.clone().upcast(),
-            gpu_temperature.as_ref().map(|card| card.widget.clone().upcast()),
-        ));
-        overview.grid.set_margin_bottom(8);
-        content.append(&overview.grid);
-        readings.push(Reading { card: cpu_temperature, value: Box::new(|s| s.cpu_temperature) });
-        if let (Some(card), Some(&i)) = (gpu_temperature, usable.first()) {
-            readings.push(Reading { card, value: Box::new(move |s| s.gpus[i].temperature) });
+        let mut readings = Vec::new();
+        let mut graphs = Vec::new();
+        let cpu_temperature: ValueFn = Rc::new(|s: &Sample| s.cpu_temperature);
+        let gpu_temperature = |i: usize| -> ValueFn { Rc::new(move |s: &Sample| s.gpus[i].temperature) };
+
+        // Overview: processor and the first graphics card.
+        let mut series = vec![(Tone::Cpu, cpu_temperature.clone())];
+        if let Some(i) = first_gpu {
+            series.push((Tone::Gpu, gpu_temperature(i)));
         }
-        let mut add = |grid: &gtk::FlowBox, card: Card, value: ValueFn| {
-            grid.append(&card.widget);
-            if let Some(child) = card.widget.parent() {
-                child.set_focusable(false);
-            }
-            readings.push(Reading { card, value });
-        };
+        graphs.push(Graph { graph: overview.history.clone(), series: series.clone(), limit: LimitOf::Nearest });
+        // The Load Test page: the same, over two minutes.
+        graphs.push(Graph { graph: test.graph.clone(), series, limit: LimitOf::Nearest });
 
         // Processor.
-        let cpu = section(&content, &machine.cpu.model, &trf("{} threads", &[&machine.cpu.threads]));
-        add(&cpu, Card::new(tr("Utilization"), "%", Scale::Percent), Box::new(|s| s.cpu_utilization));
+        let cpu_page = devices::page_box();
+        let history = devices::history_card(&cpu_page, &[("band", tr("Test")), ("limit", tr("Limit"))]);
+        graphs.push(Graph { graph: history, series: vec![(Tone::Cpu, cpu_temperature.clone())], limit: LimitOf::Cpu });
+        let list = devices::group(&cpu_page, &machine.cpu.model, Some((graph::ICON_CPU, "cpu")), &trf("{} threads", &[&machine.cpu.threads]));
+        let row = ReadingRow::new(&list, tr("Temperature"), graph::ICON_TEMPERATURE, Tone::Cpu, "°C", "");
+        readings.push(Reading { row, value: cpu_temperature.clone() });
+        let row = ReadingRow::new(&list, tr("Utilization"), graph::ICON_LOAD, Tone::Cpu, "%", "");
+        readings.push(Reading { row, value: Rc::new(|s| s.cpu_utilization) });
         if first.cpu_power.is_some() {
-            add(&cpu, Card::new(tr("Power"), "W", Scale::Power), Box::new(|s| s.cpu_power));
+            let row = ReadingRow::new(&list, tr("Power"), graph::ICON_POWER, Tone::Cpu, "W", "");
+            readings.push(Reading { row, value: Rc::new(|s| s.cpu_power) });
         }
-        fill_row(&cpu);
 
-        // Graphics cards that can be used; the others get a small label with the reason.
+        // Graphics cards that can be used; the others get a note with the reason.
+        let gpu_page = devices::page_box();
+        if !usable.is_empty() {
+            let mut legend = Vec::new();
+            if usable.len() > 1 {
+                legend.extend(usable.iter().take(1).map(|_| ("gpu", tr("Graphics card"))));
+            }
+            legend.push(("band", tr("Test")));
+            legend.push(("limit", tr("Limit")));
+            let history = devices::history_card(&gpu_page, &legend);
+            let series = usable.iter().enumerate().map(|(n, &i)| (if n == 0 { Tone::Gpu } else { Tone::Neutral }, gpu_temperature(i))).collect();
+            graphs.push(Graph { graph: history, series, limit: LimitOf::Gpu });
+        }
         for &i in &usable {
             let gpu = &machine.gpus[i];
-            let grid = section(&content, &gpu.name, &gpu_subtitle(gpu));
             let reading = &first.gpus[i];
-            if usable.first() != Some(&i) {
-                add(&grid, Card::new(tr("Temperature"), "°C", Scale::Temperature), Box::new(move |s| s.gpus[i].temperature));
-            }
-            add(&grid, Card::new(tr("Utilization"), "%", Scale::Percent), Box::new(move |s| s.gpus[i].utilization));
+            let tone = if Some(i) == first_gpu { Tone::Gpu } else { Tone::Neutral };
+            let list = devices::group(&gpu_page, &gpu.name, Some((graph::ICON_GPU, if tone == Tone::Gpu { "gpu" } else { "neutral" })), &gpu_subtitle(gpu));
+            let row = ReadingRow::new(&list, tr("Temperature"), graph::ICON_TEMPERATURE, tone, "°C", "");
+            readings.push(Reading { row, value: gpu_temperature(i) });
+            let row = ReadingRow::new(&list, tr("Utilization"), graph::ICON_LOAD, tone, "%", tr("the desktop counts too"));
+            readings.push(Reading { row, value: Rc::new(move |s| s.gpus[i].utilization) });
             if reading.power.is_some() {
-                add(&grid, Card::new(tr("Power"), "W", Scale::Power), Box::new(move |s| s.gpus[i].power));
+                let row = ReadingRow::new(&list, tr("Power"), graph::ICON_POWER, tone, "W", "");
+                readings.push(Reading { row, value: Rc::new(move |s| s.gpus[i].power) });
             }
             if reading.fan_percent.is_some() {
-                add(&grid, Card::new(tr("Fan"), "%", Scale::Percent), Box::new(move |s| s.gpus[i].fan_percent));
+                let row = ReadingRow::new(&list, tr("Fan"), graph::ICON_FAN, tone, "%", "");
+                readings.push(Reading { row, value: Rc::new(move |s| s.gpus[i].fan_percent) });
             }
-            fill_row(&grid);
         }
-        let unusable: Vec<&Gpu> = machine.gpus.iter().filter(|g| g.unavailable_reason().is_some()).collect();
-        if !unusable.is_empty() || machine.gpus.is_empty() {
-            let labels = gtk::FlowBox::builder().selection_mode(gtk::SelectionMode::None).column_spacing(8).row_spacing(8).max_children_per_line(8).build();
-            for gpu in &unusable {
-                let reason = gpu.unavailable_reason().unwrap_or_default();
-                labels.append(&slim(&format!("{} · {reason}", gpu.name), &gpu_subtitle(gpu)));
-            }
-            if machine.gpus.is_empty() {
-                labels.append(&slim(tr("No graphics card found"), ""));
-            }
-            for child in std::iter::successors(labels.first_child(), |child| child.next_sibling()) {
-                child.set_focusable(false);
-                child.set_halign(gtk::Align::Start);
-            }
-            content.append(&labels);
+        for gpu in machine.gpus.iter().filter(|g| g.unavailable_reason().is_some()) {
+            let list = devices::group(&gpu_page, &gpu.name, Some((graph::ICON_GPU, "neutral")), &gpu.pci);
+            list.append(&devices::note_row(&gpu.unavailable_reason().unwrap_or_default()));
+        }
+        if machine.gpus.is_empty() {
+            let list = devices::group(&gpu_page, tr("Graphics card"), Some((graph::ICON_GPU, "neutral")), "");
+            list.append(&devices::note_row(tr("No graphics card found")));
         }
 
         // Power supply, when it reports itself.
+        let psu_page = devices::page_box();
         let psu = first.psu.as_ref().map(|reading| {
-            let grid = section(&content, &reading.name, tr("The power supply updates its readings every few seconds."));
-            add(&grid, Card::new(tr("Output to the computer"), "W", Scale::Power), Box::new(|s| s.psu.as_ref().map(|p| p.output)));
-            if first.cpu_power.is_some() && usable.iter().all(|&i| first.gpus[i].power.is_some()) {
-                let card = Card::new(tr("Rest of the computer"), "W", Scale::Power);
-                card.widget.set_tooltip_text(Some(tr("Motherboard, memory, disks and fans: the power supply's output minus the processor and graphics cards.")));
+            let list = devices::group(&psu_page, &reading.name, Some((graph::ICON_PSU, "neutral")), "");
+            let row = ReadingRow::new(&list, tr("Output to the computer"), graph::ICON_POWER, Tone::Neutral, "W", "");
+            readings.push(Reading { row, value: Rc::new(|s| s.psu.as_ref().map(|p| p.output)) });
+            if reading.input_estimate.is_some() {
+                let row = ReadingRow::new(&list, tr("From the wall"), graph::ICON_PSU, Tone::Neutral, "W", tr("estimated"));
+                row.row.set_tooltip_text(Some(tr("Calculated from the efficiency class; the power supply does not measure it.")));
+                readings.push(Reading { row, value: Rc::new(|s| s.psu.as_ref().and_then(|p| p.input_estimate)) });
+            }
+            if has_rest {
+                let row = ReadingRow::new(&list, tr("Rest of the computer"), graph::ICON_REST, Tone::Neutral, "W", "");
+                row.row.set_tooltip_text(Some(tr("Motherboard, memory, disks and fans: the power supply's output minus the processor and graphics cards.")));
                 let usable = usable.clone();
-                add(&grid, card, Box::new(move |s| rest_of_computer(s, &usable)));
+                readings.push(Reading { row, value: Rc::new(move |s| rest_of_computer(s, &usable)) });
             }
-            let details = tile();
-            details.append(&gtk::Label::builder().label(tr("Details")).halign(gtk::Align::Start).css_classes(["stress-tile-title"]).build());
-            let rows = gtk::Grid::builder().column_spacing(12).row_spacing(2).margin_top(4).css_classes(["stress-details"]).build();
-            details.append(&rows);
-            let input_volts = detail(&rows, tr("Input voltage"));
-            let temperature = detail(&rows, tr("Temperature"));
-            let fan = detail(&rows, tr("Fan"));
-            let rails = reading.rails.iter().map(|rail| detail(&rows, &trf("{} rail", &[&rail.label]))).collect();
-            grid.append(&details);
-            if let Some(child) = details.parent() {
-                child.set_focusable(false);
-            }
-            fill_row(&grid);
+            let details = devices::group(&psu_page, tr("Details"), None, "");
+            let input_volts = devices::detail_row(&details, tr("Input voltage"));
+            let temperature = devices::detail_row(&details, tr("Temperature"));
+            let fan = devices::detail_row(&details, tr("Fan"));
+            let rails = reading.rails.iter().map(|rail| devices::detail_row(&details, &trf("{} rail", &[&rail.label]))).collect();
             PsuLabels { input_volts, temperature, fan, rails }
         });
 
-        let rapl_offer = first.cpu_power.is_none().then_some(cpu);
-        let scroll = gtk::ScrolledWindow::builder()
-            .hscrollbar_policy(gtk::PolicyType::Never)
-            .child(&content)
-            .vexpand(true)
-            .build();
-        let view = adw::ToolbarView::new();
-        view.add_top_bar(&header);
-        view.set_content(Some(&scroll));
+        // The power card on the overview: from the wall, else the power
+        // supply's output, else the processor and graphics cards together.
+        let power_value: ValueFn = {
+            let usable = usable.clone();
+            Rc::new(move |s: &Sample| match &s.psu {
+                Some(psu) => psu.input_estimate.or(Some(psu.output)),
+                None => std::iter::once(s.cpu_power).chain(usable.iter().map(|&i| s.gpus[i].power)).sum(),
+            })
+        };
 
-        // The load test panel.
-        let panel_header = adw::HeaderBar::builder().show_title(false).build();
-        panel_header.pack_start(&gtk::Label::builder().label(tr("Load Test")).margin_start(8).css_classes(["heading"]).build());
-        panel_header.pack_end(&menu_button(true));
-        let panel = adw::ToolbarView::new();
-        panel.add_top_bar(&panel_header);
-        panel.set_content(Some(&test.panel));
-        let split = adw::OverlaySplitView::builder()
-            .css_classes(["stress-main", "stress-docked"])
-            .sidebar_position(gtk::PackType::End)
-            .min_sidebar_width(380.0)
-            .max_sidebar_width(400.0)
-            .sidebar_width_fraction(0.31)
-            .content(&view)
-            .sidebar(&panel)
-            .build();
-        split.bind_property("show-sidebar", &panel_toggle, "active").bidirectional().sync_create().build();
-        split.connect_collapsed_notify(|split| {
-            // Over the readings the panel needs its normal, solid background.
-            if split.is_collapsed() {
-                split.remove_css_class("stress-docked");
-            } else {
-                split.add_css_class("stress-docked");
+        // The pages.
+        let mut pages: Vec<PageInfo> = vec![
+            ("overview", tr("Overview"), graph::ICON_HOME),
+            ("test", tr("Load Test"), graph::ICON_TEST),
+            ("cpu", tr("Processor"), graph::ICON_CPU),
+            ("gpu", if usable.len() > 1 { tr("Graphics cards") } else { tr("Graphics card") }, graph::ICON_GPU),
+        ];
+        if psu.is_some() {
+            pages.push(("psu", tr("Power supply"), graph::ICON_PSU));
+        }
+        let stack = adw::ViewStack::new();
+        stack.add_named(&overview.page, Some("overview"));
+        stack.add_named(&test.page, Some("test"));
+        stack.add_named(&devices::page(&cpu_page), Some("cpu"));
+        stack.add_named(&devices::page(&gpu_page), Some("gpu"));
+        if psu.is_some() {
+            stack.add_named(&devices::page(&psu_page), Some("psu"));
+        }
+        for (name, title, _) in &pages {
+            if let Some(child) = stack.child_by_name(name) {
+                stack.page(&child).set_title(Some(title));
             }
-        });
+        }
+
+        // The page header: title on the left, Start/Stop and the menu on the right.
+        let header = adw::HeaderBar::builder().css_classes(["stress-page-header"]).title_widget(&gtk::Box::new(gtk::Orientation::Horizontal, 0)).build();
+        let titles = gtk::Box::builder().orientation(gtk::Orientation::Vertical).valign(gtk::Align::Center).margin_start(8).build();
+        let page_title = gtk::Label::builder().xalign(0.0).ellipsize(gtk::pango::EllipsizeMode::End).css_classes(["stress-page-title"]).build();
+        let page_subtitle = gtk::Label::builder().xalign(0.0).ellipsize(gtk::pango::EllipsizeMode::End).css_classes(["stress-page-subtitle", "dim-label"]).build();
+        titles.append(&page_title);
+        titles.append(&page_subtitle);
+        header.pack_start(&titles);
+        let menu = gio::Menu::new();
+        let section = gio::Menu::new();
+        section.append(Some(tr("Preferences")), Some("win.preferences"));
+        section.append(Some(tr("Check for Updates…")), Some("win.check-update"));
+        section.append(Some(tr("About Stress")), Some("win.about"));
+        menu.append_section(None, &section);
+        let quit = gio::Menu::new();
+        quit.append(Some(tr("Quit")), Some("app.quit"));
+        menu.append_section(None, &quit);
+        let menu_button = gtk::MenuButton::builder().icon_name("open-menu-symbolic").menu_model(&menu).primary(true).valign(gtk::Align::Center).tooltip_text(tr("Main Menu")).build();
+        let header_start = gtk::Button::builder().label(tr("Start")).valign(gtk::Align::Center).css_classes(["suggested-action"]).build();
+        header.pack_end(&header_start);
+        header.pack_end(&menu_button);
+        let content = adw::ToolbarView::new();
+        content.add_top_bar(&header);
+        content.set_content(Some(&stack));
+        let content_page = adw::NavigationPage::builder().title(tr("Overview")).tag("content").child(&content).build();
+
+        // The sidebar.
+        let sidebar = adw::ToolbarView::builder().css_classes(["stress-sidebar"]).build();
+        sidebar.add_top_bar(&adw::HeaderBar::builder().css_classes(["stress-page-header"]).title_widget(&gtk::Box::new(gtk::Orientation::Horizontal, 0)).build());
+        let column = gtk::Box::builder().orientation(gtk::Orientation::Vertical).margin_start(10).margin_end(10).margin_bottom(12).build();
+        // The app's name under the window buttons, not beside them.
+        let brand = gtk::Box::builder().spacing(10).margin_start(6).margin_bottom(16).build();
+        brand.append(&gtk::Image::builder().icon_name(APP_ID).pixel_size(36).build());
+        let names = gtk::Box::builder().orientation(gtk::Orientation::Vertical).valign(gtk::Align::Center).build();
+        names.append(&gtk::Label::builder().label("Stress").xalign(0.0).css_classes(["heading"]).build());
+        names.append(&gtk::Label::builder().label(tr("CPU and GPU stress test")).xalign(0.0).ellipsize(gtk::pango::EllipsizeMode::End).css_classes(["caption", "dim-label"]).build());
+        brand.append(&names);
+        column.append(&brand);
+        let nav = gtk::ListBox::builder().css_classes(["navigation-sidebar", "stress-nav"]).build();
+        let hardware_nav = gtk::ListBox::builder().css_classes(["navigation-sidebar", "stress-nav"]).build();
+        let mut nav_rows = Vec::new();
+        let mut test_dot = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        for (name, title, icon) in &pages {
+            let (row, content) = nav_row(title, icon);
+            if *name == "test" {
+                test_dot = gtk::Box::builder().valign(gtk::Align::Center).visible(false).css_classes(["stress-nav-dot"]).build();
+                content.append(&test_dot);
+            }
+            if matches!(*name, "overview" | "test") {
+                nav.append(&row);
+            } else {
+                hardware_nav.append(&row);
+            }
+            nav_rows.push((*name, row));
+        }
+        column.append(&nav);
+        column.append(&gtk::Label::builder().label(tr("Hardware")).xalign(0.0).margin_start(6).margin_top(14).margin_bottom(4).css_classes(["caption-heading", "dim-label"]).build());
+        column.append(&hardware_nav);
+        column.append(&gtk::Box::builder().vexpand(true).build());
+        let status_button = gtk::Button::builder().css_classes(["stress-status"]).margin_bottom(6).build();
+        let status_box = gtk::Box::builder().orientation(gtk::Orientation::Vertical).spacing(8).build();
+        let status_top = gtk::Box::builder().spacing(10).build();
+        let status_icon = gtk::Image::builder().icon_name("emblem-ok-symbolic").valign(gtk::Align::Center).css_classes(["stress-status-icon"]).build();
+        status_top.append(&status_icon);
+        let status_texts = gtk::Box::builder().orientation(gtk::Orientation::Vertical).valign(gtk::Align::Center).build();
+        let status_title = gtk::Label::builder().xalign(0.0).ellipsize(gtk::pango::EllipsizeMode::End).css_classes(["stress-status-title"]).build();
+        let status_text = gtk::Label::builder().xalign(0.0).wrap(true).css_classes(["caption", "dim-label", "stress-sub"]).build();
+        status_texts.append(&status_title);
+        status_texts.append(&status_text);
+        status_top.append(&status_texts);
+        status_box.append(&status_top);
+        let status_progress = gtk::ProgressBar::builder().css_classes(["stress-progress", "thin"]).visible(false).build();
+        status_box.append(&status_progress);
+        status_button.set_child(Some(&status_box));
+        column.append(&status_button);
+        let settings = gtk::ListBox::builder().css_classes(["navigation-sidebar", "stress-nav"]).selection_mode(gtk::SelectionMode::None).build();
+        settings.append(&nav_row(tr("Preferences"), &["emblem-system-symbolic"]).0);
+        column.append(&settings);
+        sidebar.set_content(Some(&column));
+        let status = SidebarStatus { button: status_button, icon: status_icon, title: status_title, text: status_text, progress: status_progress };
+
+        // Sidebar on the left, the pages on the right; one at a time in narrow windows.
+        let split = adw::NavigationSplitView::builder().min_sidebar_width(232.0).max_sidebar_width(232.0).css_classes(["stress-main"]).build();
+        split.set_sidebar(Some(&adw::NavigationPage::builder().title("Stress").tag("sidebar").child(&sidebar).build()));
+        split.set_content(Some(&content_page));
         let toasts = adw::ToastOverlay::new();
+        toasts.add_css_class("stress-root");
         toasts.set_child(Some(&split));
         window.set_content(Some(&toasts));
+        style::follow_style(&toasts);
 
-        // The panel goes over the readings when it no longer fits beside them,
-        // and the overview takes two rows when it no longer fits on one.
-        let hide_panel = |breakpoint: &adw::Breakpoint| {
-            breakpoint.add_setter(&split, "collapsed", Some(&true.to_value()));
-            breakpoint.add_setter(&split, "show-sidebar", Some(&false.to_value()));
-            breakpoint.add_setter(&panel_toggle, "visible", Some(&true.to_value()));
-            breakpoint.add_setter(&header_menu, "visible", Some(&true.to_value()));
-        };
-        let medium = adw::Breakpoint::new(adw::BreakpointCondition::parse("max-width: 1180sp").unwrap());
-        hide_panel(&medium);
-        window.add_breakpoint(medium);
-        let narrow = adw::Breakpoint::new(adw::BreakpointCondition::parse("max-width: 800sp").unwrap());
-        hide_panel(&narrow);
-        let tiles = overview.clone();
-        narrow.connect_apply(move |_| tiles.arrange(true));
-        let tiles = overview.clone();
-        narrow.connect_unapply(move |_| tiles.arrange(false));
-        window.add_breakpoint(narrow);
-
-        // The layered cards look different on a light background.
-        let style = adw::StyleManager::default();
-        let sync_style = {
-            let split = split.clone();
-            move |style: &adw::StyleManager| {
-                if style.is_dark() {
-                    split.remove_css_class("stress-light");
-                } else {
-                    split.add_css_class("stress-light");
-                }
+        // Medium wide: the overview's cards two and two, the bottom cards and
+        // the test page's columns stacked; narrow: also sidebar and page one
+        // at a time. Only the last matching breakpoint applies, so the narrow
+        // one has all the setters.
+        for (width, collapse) in [(1100, false), (700, true)] {
+            let breakpoint = adw::Breakpoint::new(adw::BreakpointCondition::parse(&format!("max-width: {width}sp")).unwrap());
+            breakpoint.add_setter(&overview.cards, "orientation", Some(&gtk::Orientation::Vertical.to_value()));
+            breakpoint.add_setter(&overview.bottom, "orientation", Some(&gtk::Orientation::Vertical.to_value()));
+            breakpoint.add_setter(&overview.bottom, "homogeneous", Some(&false.to_value()));
+            breakpoint.add_setter(&test.columns, "orientation", Some(&gtk::Orientation::Vertical.to_value()));
+            breakpoint.add_setter(&test.columns, "homogeneous", Some(&false.to_value()));
+            if collapse {
+                breakpoint.add_setter(&split, "collapsed", Some(&true.to_value()));
             }
-        };
-        sync_style(&style);
-        style.connect_dark_notify(sync_style);
+            window.add_breakpoint(breakpoint);
+        }
 
         let app = Rc::new(App {
             window,
-            title,
             toasts,
             split,
+            stack,
+            content_page,
+            nav,
+            nav_rows,
+            test_dot,
+            page_title,
+            page_subtitle,
+            header_start,
+            status,
             overview,
             usable,
             tint: Cell::new(None),
@@ -598,21 +558,28 @@ impl App {
             closing: Cell::new(false),
             hidden_notice_shown: Cell::new(false),
             tray_state: RefCell::new(None),
+            syncing: Cell::new(false),
+            test_line: RefCell::new(None),
+            nearest: Cell::new(None),
             config: RefCell::new(config),
             machine,
             readings,
+            graphs,
+            power_value,
             psu,
             refresh_source: RefCell::new(None),
         });
         CURRENT.with(|current| *current.borrow_mut() = Rc::downgrade(&app));
-        if let (Some(cards), Some(offer)) = (rapl_offer, app.rapl_offer()) {
-            // Right below the processor's cards.
-            if let Some(content) = cards.parent().and_downcast::<gtk::Box>() {
-                content.insert_child_after(&offer, Some(&cards));
-            }
+        if let Some(offer) = app.rapl_offer() {
+            // Under the processor's readings.
+            offer.add_css_class("stress-list");
+            cpu_page.append(&offer);
         }
+        app.connect_navigation(&hardware_nav, &settings);
+        app.connect_overview();
         app.install_actions();
         app.build_test_panel();
+        app.show_page(carry.as_ref().map_or("overview", |c| c.page.as_str()));
         app.tick();
         // The window is not shown yet, so the first readings are put in by hand.
         app.show_readings();
@@ -650,12 +617,124 @@ impl App {
         app
     }
 
+    /// The sidebar's rows, its status card, and the header's Start/Stop.
+    fn connect_navigation(self: &Rc<Self>, hardware_nav: &gtk::ListBox, settings: &gtk::ListBox) {
+        // The two lists act as one: picking in one clears the other.
+        for (list, other) in [(&self.nav, hardware_nav), (hardware_nav, &self.nav)] {
+            let weak = Rc::downgrade(self);
+            let other = other.clone();
+            list.connect_row_activated(move |_, row| {
+                let Some(app) = weak.upgrade() else { return };
+                other.unselect_all();
+                if let Some((name, _)) = app.nav_rows.iter().find(|(_, r)| r == row) {
+                    app.show_page(name);
+                }
+            });
+        }
+        let weak = Rc::downgrade(self);
+        settings.connect_row_activated(move |_, _| {
+            if let Some(app) = weak.upgrade() {
+                app.show_preferences();
+            }
+        });
+        let weak = Rc::downgrade(self);
+        self.status.button.connect_clicked(move |_| {
+            if let Some(app) = weak.upgrade() {
+                app.show_page("test");
+            }
+        });
+        let weak = Rc::downgrade(self);
+        self.header_start.connect_clicked(move |_| {
+            if let Some(app) = weak.upgrade() {
+                app.start_or_stop();
+            }
+        });
+    }
+
+    /// The overview's links and controls.
+    fn connect_overview(self: &Rc<Self>) {
+        let o = &self.overview;
+        let weak = Rc::downgrade(self);
+        o.power_link.connect_clicked(move |_| {
+            if let Some(app) = weak.upgrade() {
+                app.show_page("psu");
+            }
+        });
+        let weak = Rc::downgrade(self);
+        o.safety_link.connect_clicked(move |_| {
+            if let Some(app) = weak.upgrade() {
+                app.show_preferences().set_visible_page_name("safety");
+            }
+        });
+        let weak = Rc::downgrade(self);
+        o.test_click.connect_released(move |_, _, _, _| {
+            if let Some(app) = weak.upgrade() {
+                app.show_page("test");
+            }
+        });
+        o.longest.set_value(self.config.borrow().max_minutes);
+        o.battery.set_active(self.config.borrow().stop_on_battery);
+        let weak = Rc::downgrade(self);
+        o.longest.connect_value_changed(move |button| {
+            let Some(app) = weak.upgrade().filter(|app| !app.syncing.get()) else { return };
+            app.config.borrow_mut().max_minutes = button.value();
+            app.config.borrow().save();
+            app.update_test_status();
+        });
+        let weak = Rc::downgrade(self);
+        o.battery.connect_active_notify(move |switch| {
+            let Some(app) = weak.upgrade().filter(|app| !app.syncing.get()) else { return };
+            app.config.borrow_mut().stop_on_battery = switch.is_active();
+            app.config.borrow().save();
+        });
+    }
+
+    /// Shows a page, marks it in the sidebar and fills in the header.
+    fn show_page(&self, name: &str) {
+        let Some(child) = self.stack.child_by_name(name) else { return };
+        self.stack.set_visible_child(&child);
+        let title = self.stack.page(&child).title().map(|t| t.to_string()).unwrap_or_default();
+        self.page_title.set_label(&title);
+        self.content_page.set_title(&title);
+        for (row_name, row) in &self.nav_rows {
+            if let Some(list) = row.parent().and_downcast::<gtk::ListBox>() {
+                if *row_name == name {
+                    list.select_row(Some(row));
+                } else if list.selected_row().as_ref() == Some(row) {
+                    list.unselect_all();
+                }
+            }
+        }
+        // The Load Test page has its own large button.
+        self.header_start.set_visible(name != "test");
+        self.split.set_show_content(true);
+        self.update_subtitle();
+    }
+
+    fn visible_page(&self) -> String {
+        self.stack.visible_child_name().map(|n| n.to_string()).unwrap_or_default()
+    }
+
+    fn update_subtitle(&self) {
+        let machine = &self.machine;
+        let text = match self.visible_page().as_str() {
+            "overview" => self.test_line.borrow().clone().unwrap_or_else(|| tr("Temperatures and power right now").to_owned()),
+            "test" => tr("Choose a load; the test stops by itself at a limit").to_owned(),
+            "cpu" => tr("Temperature, utilization and power").to_owned(),
+            "gpu" if machine.gpus.is_empty() => tr("No graphics card found").to_owned(),
+            "gpu" => tr("Temperature, utilization, power and fan").to_owned(),
+            "psu" => tr("The power supply updates its readings every few seconds.").to_owned(),
+            _ => String::new(),
+        };
+        self.page_subtitle.set_label(&text);
+    }
+
     /// Development aid: render the window to a PNG and quit, since GNOME on
     /// Wayland does not let other programs capture it.
     ///
     /// `tour` idles for 30 seconds, starts a test with the saved setup and
-    /// captures it after the delay; `panel` shows the load test panel, for
-    /// trying it over the readings in a narrow window.
+    /// captures it after the delay; a page name (`test`, `cpu`, `gpu`, `psu`)
+    /// shows that page.
     fn schedule_screenshot(self: &Rc<Self>, path: String, page: Option<String>) {
         let weak = Rc::downgrade(self);
         let delay = std::env::var("STRESS_SCREENSHOT_DELAY").ok().and_then(|d| d.parse().ok()).unwrap_or(3);
@@ -676,16 +755,20 @@ impl App {
         glib::timeout_add_local_once(Duration::from_secs(delay), move || {
             let Some(app) = weak.upgrade() else { return };
             let mut dialog: Option<adw::Dialog> = None;
-            if page.as_deref() == Some("about") {
-                dialog = Some(app.show_about().upcast());
-            } else if page.as_deref() == Some("panel") {
-                app.split.set_show_sidebar(true);
-            } else if let Some(prefs_page) = page.as_deref().and_then(|p| p.strip_prefix("preferences")) {
-                let preferences = app.show_preferences();
-                if let Some(name) = prefs_page.strip_prefix('-') {
-                    preferences.set_visible_page_name(name);
+            match page.as_deref() {
+                Some("about") => dialog = Some(app.show_about().upcast()),
+                Some("panel") => app.show_page("test"),
+                Some(name @ ("overview" | "test" | "cpu" | "gpu" | "psu")) => app.show_page(name),
+                Some(other) => {
+                    if let Some(prefs_page) = other.strip_prefix("preferences") {
+                        let preferences = app.show_preferences();
+                        if let Some(name) = prefs_page.strip_prefix('-') {
+                            preferences.set_visible_page_name(name);
+                        }
+                        dialog = Some(preferences.upcast());
+                    }
                 }
-                dialog = Some(preferences.upcast());
+                None => {}
             }
             let window = app.window.clone();
             let weak = Rc::downgrade(&app);
@@ -711,64 +794,217 @@ impl App {
         }
     }
 
+    /// The limits that apply now, as (processor, graphics card): a running
+    /// test may have stricter ones (set by Claude), and Vifte's emergency
+    /// temperature lowers both while it runs.
+    fn limits(&self, vifte: Option<&VifteState>) -> (f64, f64) {
+        let vifte_limit = vifte.and_then(VifteState::limit).unwrap_or(f64::INFINITY);
+        let config = self.config.borrow();
+        let (cpu, gpu) = match self.machine.controller.status() {
+            crate::loadtest::Status::Running { limits, .. } => (limits.cpu, limits.gpu),
+            _ => (config.cpu_limit, config.gpu_limit),
+        };
+        (cpu.min(vifte_limit), gpu.min(vifte_limit))
+    }
+
     fn show_readings(&self) {
         let history = &self.machine.history;
         let tests = history.test_periods();
         for reading in &self.readings {
-            let points = history.series(&reading.value);
-            let current = points.last().and_then(|(_, v)| *v);
-            reading.card.set(current, points, tests.clone());
+            reading.row.set(&history.series(&*reading.value));
         }
-        if let (Some(labels), Some(reading)) = (&self.psu, history.latest().and_then(|s| s.psu)) {
-            show_psu(labels, &reading);
+        let vifte = self.vifte_state();
+        let (cpu_limit, gpu_limit) = self.limits(vifte.as_ref());
+        let latest = history.latest();
+        let mut temperatures = vec![(latest.as_ref().and_then(|s| s.cpu_temperature), cpu_limit)];
+        temperatures.extend(self.usable.iter().map(|&i| (latest.as_ref().and_then(|s| s.gpus[i].temperature), gpu_limit)));
+        let nearest = look::nearest_limit(&temperatures);
+        for graph in &self.graphs {
+            let series = graph.series.iter().map(|(tone, value)| (*tone, history.series(&**value))).collect();
+            let limit = match graph.limit {
+                LimitOf::Cpu => cpu_limit,
+                LimitOf::Gpu => gpu_limit,
+                LimitOf::Nearest => nearest.map_or(cpu_limit.min(gpu_limit), |(limit, _)| limit),
+            };
+            graph.graph.set(series, tests.clone(), limit.is_finite().then_some(limit));
         }
-        if let Some(sample) = history.latest() {
-            self.show_overview(&sample);
+        if let (Some(labels), Some(reading)) = (&self.psu, latest.as_ref().and_then(|s| s.psu.as_ref())) {
+            show_psu(labels, reading);
+        }
+        if let Some(sample) = latest {
+            self.show_overview(&sample, &temperatures, vifte.as_ref());
         }
     }
 
-    /// Power use, safety and the window's tint.
-    fn show_overview(&self, sample: &Sample) {
+    /// The overview's cards, the window's tint and the live numbers on the
+    /// Load Test page.
+    fn show_overview(&self, sample: &Sample, temperatures: &[(Option<f64>, f64)], vifte: Option<&VifteState>) {
+        let o = &self.overview;
+        let history = &self.machine.history;
+        o.cpu.set(&degrees(sample.cpu_temperature), sample.cpu_temperature, &self.machine.cpu.model);
+        o.cpu.spark.set(&history.series(|s| s.cpu_temperature));
+        let first_gpu = self.usable.first().copied();
+        if let (Some(tile), Some(i)) = (&o.gpu, first_gpu) {
+            let t = sample.gpus[i].temperature;
+            tile.set(&degrees(t), t, &self.machine.gpus[i].name);
+            tile.spark.set(&history.series(|s| s.gpus[i].temperature));
+        }
+
+        // Power.
         match &sample.psu {
             Some(psu) => match psu.input_estimate {
                 Some(wall) => {
-                    self.overview.show_power(
-                        tr("From the wall"),
-                        &format!("≈ {}", format(Some(wall), "W", 0)),
-                        &trf("Output {}", &[&format(Some(psu.output), "W", 0)]),
-                    );
-                    self.overview.set_power_tooltip(Some(tr("Calculated from the efficiency class; the power supply does not measure it.")));
+                    o.power.title.set_label(tr("From the wall"));
+                    o.power.set(&format!("≈ {}", format(Some(wall), "W", 0)), None, &trf("Output {}", &[&format(Some(psu.output), "W", 0)]));
+                    o.power.widget.set_tooltip_text(Some(tr("Calculated from the efficiency class; the power supply does not measure it.")));
                 }
-                None => self.overview.show_power(tr("Output to the computer"), &format(Some(psu.output), "W", 0), ""),
+                None => {
+                    o.power.title.set_label(tr("Output to the computer"));
+                    o.power.set(&format(Some(psu.output), "W", 0), None, &psu.name);
+                }
             },
             None => {
-                let parts = std::iter::once(sample.cpu_power).chain(self.usable.iter().map(|&i| sample.gpus[i].power));
-                let total: Option<f64> = parts.sum();
-                self.overview.show_power(tr("Power"), &format(total, "W", 0), tr("Processor and graphics cards"));
+                o.power.title.set_label(tr("Power"));
+                o.power.set(&format((self.power_value)(sample), "W", 0), None, tr("Processor and graphics cards"));
             }
         }
-
-        let vifte = self.vifte_state();
-        let vifte_limit = vifte.as_ref().and_then(VifteState::limit).unwrap_or(f64::INFINITY);
-        let status = self.machine.controller.status();
-        let (cpu_limit, gpu_limit, tint) = {
-            let config = self.config.borrow();
-            // A running test may have stricter limits than the preferences (set by Claude).
-            let (cpu, gpu) = match status {
-                crate::loadtest::Status::Running { limits, .. } => (limits.cpu, limits.gpu),
-                _ => (config.cpu_limit, config.gpu_limit),
-            };
-            (cpu.min(vifte_limit), gpu.min(vifte_limit), config.window_tint)
+        o.power.spark.set(&history.series(&*self.power_value));
+        let gpu_power = first_gpu.and_then(|i| sample.gpus[i].power);
+        let rest = rest_of_computer(sample, &self.usable);
+        let total = match &sample.psu {
+            Some(psu) => Some(psu.output),
+            None => std::iter::once(sample.cpu_power).chain(self.usable.iter().map(|&i| sample.gpus[i].power)).sum(),
         };
-        let mut readings = vec![(sample.cpu_temperature, cpu_limit)];
-        readings.extend(self.usable.iter().map(|&i| (sample.gpus[i].temperature, gpu_limit)));
-        let idle = matches!(status, crate::loadtest::Status::Idle);
+        o.power_total.set(&format(total, "W", 0));
+        o.power_total_sub.set_label(&match &sample.psu {
+            Some(psu) => match psu.input_estimate {
+                Some(wall) => trf("to the computer · ≈ {} from the wall", &[&format(Some(wall), "W", 0)]),
+                None => tr("to the computer").to_owned(),
+            },
+            None => tr("Processor and graphics cards").to_owned(),
+        });
+        let share = |part: Option<f64>| match (part, total) {
+            (Some(p), Some(t)) if t > 0.0 => (p / t).clamp(0.0, 1.0),
+            _ => 0.0,
+        };
+        let row = &o.power_cpu;
+        row.value.set_label(&format(sample.cpu_power, "W", 0));
+        row.bar.set_value(share(sample.cpu_power));
+        row.sub.set_label(&trf("{} in use", &[&format(sample.cpu_utilization, "%", 0)]));
+        if let (Some(row), Some(i)) = (&o.power_gpu, first_gpu) {
+            row.value.set_label(&format(gpu_power, "W", 0));
+            row.bar.set_value(share(gpu_power));
+            row.sub.set_label(&trf("{} in use", &[&format(sample.gpus[i].utilization, "%", 0)]));
+        }
+        if let Some(row) = &o.power_rest {
+            row.value.set_label(&format(rest, "W", 0));
+            row.bar.set_value(share(rest));
+        }
+
+        // Protection.
+        let idle = matches!(self.machine.controller.status(), crate::loadtest::Status::Idle);
         let limit_reached = idle
             && self.last_test.borrow().as_ref().is_some_and(|(_, f)| matches!(f.reason, StopReason::CpuLimit(_) | StopReason::GpuLimit(_)));
-        self.overview.show_safety(&Safety { readings: &readings, vifte: vifte.as_ref(), limit_reached });
+        let vifte_problem = vifte.is_some_and(|v| v.emergency_active || v.sensor_lost || v.paused);
+        let (title, level) = if limit_reached {
+            (tr("Limit reached"), "emergency")
+        } else if vifte_problem {
+            (tr("Check Vifte"), "warm")
+        } else {
+            (tr("All good"), "calm")
+        };
+        o.safety_title.set_label(title);
+        o.safety_icon.set_css_classes(&["stress-status-icon", level]);
+        let nearest = look::nearest_limit(temperatures);
+        self.nearest.set(nearest.map(|(limit, _)| limit));
+        o.safety_sub.set_label(&match nearest {
+            Some((limit, left)) => [trf("Stops at {}", &[&format(Some(limit), "°C", 0)]), trf("{} left", &[&format(Some(left), "°C", 0)])].join(" · "),
+            None => String::new(),
+        });
+        match vifte {
+            Some(state) => {
+                o.vifte_sub.set_label(&match state.limit() {
+                    Some(limit) => trf("Running. Tests also stop at {} °C, 5 °C below Vifte's emergency temperature, and whenever Vifte reports a problem.", &[&limit]),
+                    None => tr("Running. Tests stop whenever Vifte reports a problem.").to_string(),
+                });
+                o.vifte_icon.set_visible(true);
+            }
+            None => {
+                o.vifte_sub.set_label(tr("Not running. When Vifte controls the fans, tests also respect its emergency temperature."));
+                o.vifte_icon.set_visible(false);
+            }
+        }
+        {
+            let config = self.config.borrow();
+            self.syncing.set(true);
+            if o.longest.value() != config.max_minutes && !o.longest.has_focus() {
+                o.longest.set_value(config.max_minutes);
+            }
+            o.battery.set_active(config.stop_on_battery);
+            self.syncing.set(false);
+        }
 
-        let hottest = readings.iter().filter_map(|(t, _)| *t).reduce(f64::max);
+        // The Load Test page's live numbers.
+        let t = &self.test;
+        t.cpu_temperature.set_label(&format!("{} {}", tr("Processor"), degrees(sample.cpu_temperature)));
+        t.cpu_now.set_label(&trf("{} now", &[&format(sample.cpu_utilization, "%", 0)]));
+        if let Some(i) = first_gpu {
+            t.gpu_temperature.set_label(&format!("{} {}", tr("Graphics card"), degrees(sample.gpus[i].temperature)));
+            t.gpu_now.set_label(&trf("{} now", &[&format(sample.gpus[i].utilization, "%", 0)]));
+        }
+
+        let hottest = temperatures.iter().filter_map(|(t, _)| *t).reduce(f64::max);
+        let tint = self.config.borrow().temperature_tint;
         self.set_tint(tint.then_some(hottest).flatten());
+    }
+
+    /// Shows the test's state in the sidebar, the header, the overview and
+    /// the status icon's subtitle.
+    fn show_test_view(&self, view: &TestView) {
+        let s = &self.status;
+        let (icon, title, text) = match view.level {
+            "running" | "claude" => ("media-playback-start-symbolic", view.title.clone(), format!("{} · {}", view.text, self.test.profile_label())),
+            "stopped" => ("dialog-warning-symbolic", view.title.clone(), view.text.clone()),
+            _ => (
+                "emblem-ok-symbolic",
+                view.title.clone(),
+                self.nearest.get().map_or_else(String::new, |limit| trf("Stops at {}", &[&format(Some(limit), "°C", 0)])),
+            ),
+        };
+        s.icon.set_icon_name(Some(icon));
+        s.icon.set_css_classes(&["stress-status-icon", if view.level == "idle" { "calm" } else { view.level }]);
+        s.title.set_label(&title);
+        s.text.set_label(&text);
+        s.text.set_visible(!text.is_empty());
+        s.progress.set_visible(view.running);
+        s.progress.set_fraction(view.elapsed.as_secs_f64() / view.total.as_secs_f64().max(1.0));
+        self.test_dot.set_visible(view.running);
+
+        self.header_start.set_label(if view.running { tr("Stop") } else { tr("Start") });
+        self.header_start.set_css_classes(if view.running { &["destructive-action", "stress-stop"] } else { &["suggested-action"] });
+
+        let tile = &self.overview.test;
+        tile.chip.widget.set_visible(view.level != "idle");
+        tile.chip.set(view.level, if view.running { tr("Running") } else { tr("Stopped") });
+        tile.progress.set_visible(view.running);
+        tile.progress.set_fraction(view.elapsed.as_secs_f64() / view.total.as_secs_f64().max(1.0));
+        if view.running {
+            tile.value.set_parts(&test::clock(view.elapsed), &trf("of {}", &[&test::clock(view.total)]));
+            tile.sub.set_label(&view.setup);
+        } else if view.level == "stopped" {
+            tile.value.set_parts(tr("Stopped"), "");
+            tile.sub.set_label(&view.text);
+        } else {
+            tile.value.set_parts(tr("Ready"), "");
+            tile.sub.set_label(&view.setup);
+        }
+        tile.sub.set_tooltip_text(Some(&tile.sub.label()));
+
+        let line = view.running.then(|| format!("{} · {}", view.title, view.text));
+        if *self.test_line.borrow() != line {
+            *self.test_line.borrow_mut() = line;
+            self.update_subtitle();
+        }
     }
 
     /// Vifte's state as last read in the background (at most a few seconds old).
@@ -925,14 +1161,14 @@ impl App {
         let tint = adw::SwitchRow::builder()
             .title(tr("Colour follows temperature"))
             .subtitle(tr("Soft window tint: cool when idle, warm under load"))
-            .active(self.config.borrow().window_tint)
+            .active(self.config.borrow().temperature_tint)
             .build();
         look.add(&tint);
         page.add(&look);
         let weak = Rc::downgrade(self);
         tint.connect_active_notify(move |row| {
             let Some(app) = weak.upgrade() else { return };
-            app.config.borrow_mut().window_tint = row.is_active();
+            app.config.borrow_mut().temperature_tint = row.is_active();
             app.config.borrow().save();
             app.tick();
         });
@@ -1143,6 +1379,7 @@ impl App {
         let carry = Carry {
             size: (self.window.width(), self.window.height()),
             maximized: self.window.is_maximized(),
+            page: self.visible_page(),
         };
         // Keep the application running between closing this window and opening the new one.
         let _hold = application.hold();

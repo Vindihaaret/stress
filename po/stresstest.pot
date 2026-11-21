@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Stress\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-14 16:46+0100\n"
+"POT-Creation-Date: 2026-11-21 14:07+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -57,7 +57,7 @@ msgstr ""
 msgid "Start a Test"
 msgstr ""
 
-#: src/tray.rs:91 src/ui.rs:378
+#: src/tray.rs:91 src/ui.rs:445
 msgid "Quit"
 msgstr ""
 
@@ -165,13 +165,34 @@ msgstr ""
 msgid "Could not add it: {}"
 msgstr ""
 
+#: src/ui/devices.rs:67 src/ui/overview.rs:194 src/ui.rs:322 src/ui.rs:349
+#: src/ui.rs:390
+msgid "Temperature"
+msgstr ""
+
+#: src/ui/devices.rs:67 src/ui/overview.rs:194
+msgid "last 30 minutes"
+msgstr ""
+
 #. Translators: the decimal separator.
-#: src/ui/graph.rs:137 src/ui.rs:1256 src/ui.rs:1257
+#: src/ui/devices.rs:121 src/ui.rs:263 src/ui.rs:1493 src/ui.rs:1494
 msgid "."
 msgstr ""
 
-#: src/ui/graph.rs:154
+#: src/ui/devices.rs:135
 msgid "Last {} min: {} – {}"
+msgstr ""
+
+#: src/ui/graph.rs:317
+msgid "−{} min"
+msgstr ""
+
+#: src/ui/graph.rs:318
+msgid "Now"
+msgstr ""
+
+#: src/ui/graph.rs:400 src/ui.rs:921 src/ui.rs:971
+msgid "Stops at {}"
 msgstr ""
 
 #: src/ui/helpers.rs:23
@@ -198,7 +219,7 @@ msgid ""
 "rule again in the preferences, and uninstalling Stress removes it too."
 msgstr ""
 
-#: src/ui/helpers.rs:44 src/ui.rs:1169
+#: src/ui/helpers.rs:44 src/ui.rs:1406
 msgid "Cancel"
 msgstr ""
 
@@ -260,492 +281,570 @@ msgstr ""
 msgid "Could not remove the system helpers: {}"
 msgstr ""
 
-#: src/ui/overview.rs:55 src/ui.rs:1037
-msgid "Safety"
-msgstr ""
-
-#: src/ui/overview.rs:114
-msgid "Limit reached"
-msgstr ""
-
-#: src/ui/overview.rs:116
-msgid "Check Vifte"
-msgstr ""
-
-#: src/ui/overview.rs:118
-msgid "All good"
-msgstr ""
-
-#: src/ui/overview.rs:122
-msgid "Stopped"
-msgstr ""
-
-#: src/ui/overview.rs:127
-msgid "Stops at {}"
-msgstr ""
-
-#: src/ui/overview.rs:128
-msgid "{} left"
-msgstr ""
-
-#: src/ui/overview.rs:131
-msgid "Vifte is running"
-msgstr ""
-
-#: src/ui.rs:39
-msgid "Follow system"
-msgstr ""
-
-#: src/ui.rs:39
-msgid "Light"
-msgstr ""
-
-#: src/ui.rs:39
-msgid "Dark"
-msgstr ""
-
-#: src/ui.rs:374
-msgid "Preferences"
-msgstr ""
-
-#: src/ui.rs:375
-msgid "Check for Updates…"
-msgstr ""
-
-#: src/ui.rs:376
-msgid "About Stress"
-msgstr ""
-
-#: src/ui.rs:385
-msgid "Main Menu"
-msgstr ""
-
-#: src/ui.rs:394 src/ui.rs:525
-msgid "Load Test"
-msgstr ""
-
-#: src/ui.rs:425 src/ui.rs:1064 src/ui/test.rs:323
+#: src/ui/overview.rs:146 src/ui/overview.rs:188 src/ui/overview.rs:216
+#: src/ui.rs:410 src/ui.rs:949 src/ui.rs:1300 src/ui/test.rs:424
 msgid "Processor"
 msgstr ""
 
-#: src/ui.rs:426 src/ui.rs:1065 src/ui/test.rs:341
+#: src/ui/overview.rs:147 src/ui/overview.rs:190 src/ui.rs:336 src/ui.rs:367
+#: src/ui.rs:411 src/ui.rs:952 src/ui.rs:1301 src/ui/test.rs:443
 msgid "Graphics card"
 msgstr ""
 
-#: src/ui.rs:446
-msgid "{} threads"
+#: src/ui/overview.rs:153 src/ui.rs:409
+msgid "Load Test"
 msgstr ""
 
-#: src/ui.rs:447 src/ui.rs:461
-msgid "Utilization"
+#: src/ui/overview.rs:192 src/ui.rs:319 src/ui.rs:338
+msgid "Test"
 msgstr ""
 
-#: src/ui.rs:449 src/ui.rs:463 src/ui.rs:747
+#: src/ui/overview.rs:193 src/ui.rs:319 src/ui.rs:339
+msgid "Limit"
+msgstr ""
+
+#: src/ui/overview.rs:203 src/ui.rs:327 src/ui.rs:354 src/ui.rs:867
 msgid "Power"
 msgstr ""
 
-#: src/ui.rs:459 src/ui.rs:502
-msgid "Temperature"
+#: src/ui/overview.rs:204 src/ui.rs:414
+msgid "Power supply"
 msgstr ""
 
-#: src/ui.rs:466 src/ui.rs:503
-msgid "Fan"
-msgstr ""
-
-#: src/ui.rs:478
-msgid "No graphics card found"
-msgstr ""
-
-#: src/ui.rs:489
-msgid "The power supply updates its readings every few seconds."
-msgstr ""
-
-#: src/ui.rs:490 src/ui.rs:742
-msgid "Output to the computer"
-msgstr ""
-
-#: src/ui.rs:492
+#: src/ui/overview.rs:224 src/ui.rs:383
 msgid "Rest of the computer"
 msgstr ""
 
-#: src/ui.rs:493
+#: src/ui/overview.rs:225
+msgid "Motherboard, memory, disks and fans"
+msgstr ""
+
+#: src/ui/overview.rs:234
+msgid "Protection"
+msgstr ""
+
+#: src/ui/overview.rs:235 src/ui.rs:440 src/ui.rs:506
+msgid "Preferences"
+msgstr ""
+
+#: src/ui/overview.rs:250 src/ui.rs:1308
+msgid "Longest test"
+msgstr ""
+
+#: src/ui/overview.rs:251 src/ui.rs:1309
+msgid "Minutes. Also applies to tests started without a duration."
+msgstr ""
+
+#: src/ui/overview.rs:253 src/ui.rs:1314
+msgid "Stop when running on battery"
+msgstr ""
+
+#: src/ui/overview.rs:254
+msgid "A test stops when the power goes"
+msgstr ""
+
+#: src/ui.rs:43
+msgid "Follow system"
+msgstr ""
+
+#: src/ui.rs:43
+msgid "Light"
+msgstr ""
+
+#: src/ui.rs:43
+msgid "Dark"
+msgstr ""
+
+#: src/ui.rs:321
+msgid "{} threads"
+msgstr ""
+
+#: src/ui.rs:324 src/ui.rs:351
+msgid "Utilization"
+msgstr ""
+
+#: src/ui.rs:351
+msgid "the desktop counts too"
+msgstr ""
+
+#: src/ui.rs:358 src/ui.rs:391
+msgid "Fan"
+msgstr ""
+
+#: src/ui.rs:368 src/ui.rs:724
+msgid "No graphics card found"
+msgstr ""
+
+#: src/ui.rs:375 src/ui.rs:862
+msgid "Output to the computer"
+msgstr ""
+
+#: src/ui.rs:378 src/ui.rs:857
+msgid "From the wall"
+msgstr ""
+
+#: src/ui.rs:378
+msgid "estimated"
+msgstr ""
+
+#: src/ui.rs:379 src/ui.rs:859
+msgid ""
+"Calculated from the efficiency class; the power supply does not measure it."
+msgstr ""
+
+#: src/ui.rs:384
 msgid ""
 "Motherboard, memory, disks and fans: the power supply's output minus the "
 "processor and graphics cards."
 msgstr ""
 
-#: src/ui.rs:498 src/ui/update.rs:332
+#: src/ui.rs:388 src/ui/update.rs:332
 msgid "Details"
 msgstr ""
 
-#: src/ui.rs:501
+#: src/ui.rs:389
 msgid "Input voltage"
 msgstr ""
 
-#: src/ui.rs:504
+#: src/ui.rs:392
 msgid "{} rail"
 msgstr ""
 
-#: src/ui.rs:736
-msgid "From the wall"
+#: src/ui.rs:408 src/ui.rs:454
+msgid "Overview"
 msgstr ""
 
-#: src/ui.rs:738
+#: src/ui.rs:411
+msgid "Graphics cards"
+msgstr ""
+
+#: src/ui.rs:441
+msgid "Check for Updates…"
+msgstr ""
+
+#: src/ui.rs:442
+msgid "About Stress"
+msgstr ""
+
+#: src/ui.rs:447
+msgid "Main Menu"
+msgstr ""
+
+#: src/ui.rs:448 src/ui.rs:983 src/ui/test.rs:334 src/ui/test.rs:381
+msgid "Start"
+msgstr ""
+
+#: src/ui.rs:465
+msgid "CPU and GPU stress test"
+msgstr ""
+
+#: src/ui.rs:486
+msgid "Hardware"
+msgstr ""
+
+#: src/ui.rs:721
+msgid "Temperatures and power right now"
+msgstr ""
+
+#: src/ui.rs:722
+msgid "Choose a load; the test stops by itself at a limit"
+msgstr ""
+
+#: src/ui.rs:723
+msgid "Temperature, utilization and power"
+msgstr ""
+
+#: src/ui.rs:725
+msgid "Temperature, utilization, power and fan"
+msgstr ""
+
+#: src/ui.rs:726
+msgid "The power supply updates its readings every few seconds."
+msgstr ""
+
+#: src/ui.rs:858
 msgid "Output {}"
 msgstr ""
 
-#: src/ui.rs:740
-msgid ""
-"Calculated from the efficiency class; the power supply does not measure it."
-msgstr ""
-
-#: src/ui.rs:747
+#: src/ui.rs:868 src/ui.rs:884
 msgid "Processor and graphics cards"
 msgstr ""
 
-#: src/ui.rs:812
+#: src/ui.rs:881
+msgid "to the computer · ≈ {} from the wall"
+msgstr ""
+
+#: src/ui.rs:882
+msgid "to the computer"
+msgstr ""
+
+#: src/ui.rs:893 src/ui.rs:897
+msgid "{} in use"
+msgstr ""
+
+#: src/ui.rs:910
+msgid "Limit reached"
+msgstr ""
+
+#: src/ui.rs:912
+msgid "Check Vifte"
+msgstr ""
+
+#: src/ui.rs:914
+msgid "All good"
+msgstr ""
+
+#: src/ui.rs:921 src/ui/test.rs:326
+msgid "{} left"
+msgstr ""
+
+#: src/ui.rs:927 src/ui.rs:1327
+msgid ""
+"Running. Tests also stop at {} °C, 5 °C below Vifte's emergency temperature, "
+"and whenever Vifte reports a problem."
+msgstr ""
+
+#: src/ui.rs:928 src/ui.rs:1328
+msgid "Running. Tests stop whenever Vifte reports a problem."
+msgstr ""
+
+#: src/ui.rs:933 src/ui.rs:1332
+msgid ""
+"Not running. When Vifte controls the fans, tests also respect its emergency "
+"temperature."
+msgstr ""
+
+#: src/ui.rs:950 src/ui.rs:953
+msgid "{} now"
+msgstr ""
+
+#: src/ui.rs:983 src/ui/test.rs:334
+msgid "Stop"
+msgstr ""
+
+#: src/ui.rs:988 src/ui/test.rs:312
+msgid "Running"
+msgstr ""
+
+#: src/ui.rs:988 src/ui.rs:995
+msgid "Stopped"
+msgstr ""
+
+#: src/ui.rs:992 src/ui/test.rs:325 src/ui/test.rs:427
+msgid "of {}"
+msgstr ""
+
+#: src/ui.rs:998 src/ui/test.rs:290
+msgid "Ready"
+msgstr ""
+
+#: src/ui.rs:1048
 msgid "Stress is still running"
 msgstr ""
 
-#: src/ui.rs:813
+#: src/ui.rs:1049
 msgid ""
 "Stress is in the status icon, and a running test carries on. Quit from the "
 "icon."
 msgstr ""
 
-#: src/ui.rs:838
+#: src/ui.rs:1074
 msgid "Processor: {}"
 msgstr ""
 
-#: src/ui.rs:845
+#: src/ui.rs:1081
 msgid "Power supply: {}"
 msgstr ""
 
-#: src/ui.rs:892
+#: src/ui.rs:1128
 msgid ""
 "Put the processor and graphics card under controlled load and watch "
 "temperatures, fans and power use."
 msgstr ""
 
 #. Translators: put your name(s) here to be credited in the About dialog.
-#: src/ui.rs:901
+#: src/ui.rs:1137
 msgid "translator-credits"
 msgstr ""
 
-#: src/ui.rs:912
+#: src/ui.rs:1148
 msgid "General"
 msgstr ""
 
-#: src/ui.rs:917
+#: src/ui.rs:1153
 msgid "Appearance"
 msgstr ""
 
-#: src/ui.rs:920
+#: src/ui.rs:1156
 msgid "Style"
 msgstr ""
 
-#: src/ui.rs:926
+#: src/ui.rs:1162
 msgid "Colour follows temperature"
 msgstr ""
 
-#: src/ui.rs:927
+#: src/ui.rs:1163
 msgid "Soft window tint: cool when idle, warm under load"
 msgstr ""
 
-#: src/ui.rs:940
+#: src/ui.rs:1176
 msgid "Window"
 msgstr ""
 
-#: src/ui.rs:943
+#: src/ui.rs:1179
 msgid "Keep in the status icon when the window is closed"
 msgstr ""
 
-#: src/ui.rs:948
+#: src/ui.rs:1184
 msgid ""
 "Instead of quitting. A running test carries on, and the icon shows its "
 "temperature."
 msgstr ""
 
-#: src/ui.rs:950
+#: src/ui.rs:1186
 msgid "Needs a status icon area. On GNOME, install the AppIndicator extension."
 msgstr ""
 
-#: src/ui.rs:962
+#: src/ui.rs:1198
 msgid "System default"
 msgstr ""
 
-#: src/ui.rs:970 src/ui.rs:974
+#: src/ui.rs:1206 src/ui.rs:1210
 msgid "Language"
 msgstr ""
 
-#: src/ui.rs:971
+#: src/ui.rs:1207
 msgid "“System default” uses the language of your desktop."
 msgstr ""
 
-#: src/ui.rs:986
+#: src/ui.rs:1222
 msgid "Uninstall Stress"
 msgstr ""
 
-#: src/ui.rs:987
+#: src/ui.rs:1223
 msgid ""
 "Removes the program, its menu entry and the helpers it installed, and "
 "optionally the settings."
 msgstr ""
 
-#: src/ui.rs:990 src/ui.rs:1169
+#: src/ui.rs:1226 src/ui.rs:1406
 msgid "Uninstall"
 msgstr ""
 
-#: src/ui.rs:1042
+#: src/ui.rs:1273
+msgid "Safety"
+msgstr ""
+
+#: src/ui.rs:1278
 msgid "Protection is active"
 msgstr ""
 
-#: src/ui.rs:1049
+#: src/ui.rs:1285
 msgid "Tests stop at {} · longest test {} minutes"
 msgstr ""
 
-#: src/ui.rs:1053
+#: src/ui.rs:1289
 msgid "Temperature Limits"
 msgstr ""
 
-#: src/ui.rs:1054
+#: src/ui.rs:1290
 msgid "A test stops by itself when a limit is reached."
 msgstr ""
 
-#: src/ui.rs:1064 src/ui.rs:1065
+#: src/ui.rs:1300 src/ui.rs:1301
 msgid "°C"
 msgstr ""
 
-#: src/ui.rs:1070
+#: src/ui.rs:1306
 msgid "Tests"
 msgstr ""
 
-#: src/ui.rs:1072
-msgid "Longest test"
-msgstr ""
-
-#: src/ui.rs:1073
-msgid "Minutes. Also applies to tests started without a duration."
-msgstr ""
-
-#: src/ui.rs:1078
-msgid "Stop when running on battery"
-msgstr ""
-
-#: src/ui.rs:1086
+#: src/ui.rs:1322
 msgid "Fan Control"
 msgstr ""
 
-#: src/ui.rs:1091
-msgid ""
-"Running. Tests also stop at {} °C, 5 °C below Vifte's emergency temperature, "
-"and whenever Vifte reports a problem."
-msgstr ""
-
-#: src/ui.rs:1092
-msgid "Running. Tests stop whenever Vifte reports a problem."
-msgstr ""
-
-#: src/ui.rs:1096
-msgid ""
-"Not running. When Vifte controls the fans, tests also respect its emergency "
-"temperature."
-msgstr ""
-
-#: src/ui.rs:1156
+#: src/ui.rs:1393
 msgid "Uninstall Stress?"
 msgstr ""
 
-#: src/ui.rs:1157
+#: src/ui.rs:1394
 msgid ""
 "The program, its entry in the app menu and the helpers it installed will be "
 "removed."
 msgstr ""
 
-#: src/ui.rs:1159
+#: src/ui.rs:1396
 msgid "Also delete the settings"
 msgstr ""
 
-#: src/ui.rs:1161
+#: src/ui.rs:1398
 msgid "Also remove the system helpers (needs the administrator password)"
 msgstr ""
 
-#: src/ui.rs:1193
+#: src/ui.rs:1430
 msgid "Uninstalling failed: {}"
 msgstr ""
 
-#: src/ui.rs:1197
+#: src/ui.rs:1434
 msgid ""
 "Stress and all its settings have been removed. The window will now close."
 msgstr ""
 
-#: src/ui.rs:1199
+#: src/ui.rs:1436
 msgid "Stress has been removed. The window will now close."
 msgstr ""
 
-#: src/ui.rs:1201
+#: src/ui.rs:1438
 msgid "Uninstalled"
 msgstr ""
 
-#: src/ui.rs:1202 src/ui/update.rs:345
+#: src/ui.rs:1439 src/ui/update.rs:345
 msgid "Close"
 msgstr ""
 
-#: src/ui.rs:1216
+#: src/ui.rs:1453
 msgid "drives the screen"
 msgstr ""
 
-#: src/ui/test.rs:17
+#: src/ui/test.rs:19
 msgid "Full load"
 msgstr ""
 
-#: src/ui/test.rs:18
+#: src/ui/test.rs:20
 msgid "Processor only"
 msgstr ""
 
-#: src/ui/test.rs:19
+#: src/ui/test.rs:21
 msgid "Graphics card only"
 msgstr ""
 
-#: src/ui/test.rs:20
+#: src/ui/test.rs:22
 msgid "Gaming"
 msgstr ""
 
-#: src/ui/test.rs:21
+#: src/ui/test.rs:23
 msgid "Light load"
 msgstr ""
 
-#: src/ui/test.rs:70
+#: src/ui/test.rs:79
 msgid "Until stopped (at most {} min)"
 msgstr ""
 
-#: src/ui/test.rs:71
+#: src/ui/test.rs:80
 msgid "1 minute"
 msgstr ""
 
-#: src/ui/test.rs:72
+#: src/ui/test.rs:81
 msgid "{} minutes"
 msgstr ""
 
-#: src/ui/test.rs:89
+#: src/ui/test.rs:98
 msgid "Stopped after {}"
 msgstr ""
 
-#: src/ui/test.rs:90
+#: src/ui/test.rs:99
 msgid "Finished after {}"
 msgstr ""
 
-#: src/ui/test.rs:91
+#: src/ui/test.rs:100
 msgid "Stopped after {}: the processor reached {} °C"
 msgstr ""
 
-#: src/ui/test.rs:92
+#: src/ui/test.rs:101
 msgid "Stopped after {}: the graphics card reached {} °C"
 msgstr ""
 
-#: src/ui/test.rs:93
+#: src/ui/test.rs:102
 msgid "Stopped after {}: the computer is running on battery"
 msgstr ""
 
-#: src/ui/test.rs:94
+#: src/ui/test.rs:103
 msgid "Stopped after {}: the graphics card load ended unexpectedly"
 msgstr ""
 
-#: src/ui/test.rs:95
+#: src/ui/test.rs:104
 msgid "Could not start: {}"
 msgstr ""
 
-#: src/ui/test.rs:96
+#: src/ui/test.rs:105
 msgid "Stopped after {}: Vifte switched to emergency mode"
 msgstr ""
 
-#: src/ui/test.rs:97
+#: src/ui/test.rs:106
 msgid "Stopped after {}: Vifte lost a fan curve's temperature sensor"
 msgstr ""
 
-#: src/ui/test.rs:98
+#: src/ui/test.rs:107
 msgid "Stopped after {}: Vifte's fan control is paused"
 msgstr ""
 
-#: src/ui/test.rs:99
+#: src/ui/test.rs:108
 msgid "Stopped after {}: the temperature readings stopped coming"
 msgstr ""
 
-#: src/ui/test.rs:214
+#: src/ui/test.rs:242
 msgid "Choose a load for the processor or the graphics card first."
 msgstr ""
 
-#: src/ui/test.rs:249 src/ui/test.rs:299
-msgid "Start"
-msgstr ""
-
-#: src/ui/test.rs:252
+#: src/ui/test.rs:290
 msgid "Test stopped"
 msgstr ""
 
-#: src/ui/test.rs:252
-msgid "Ready"
-msgstr ""
-
-#: src/ui/test.rs:253
+#: src/ui/test.rs:291
 msgid "Choose a load and press Start"
 msgstr ""
 
-#: src/ui/test.rs:256 src/ui/test.rs:262
-msgid "Stop"
-msgstr ""
-
-#: src/ui/test.rs:256 src/ui/update.rs:316
+#: src/ui/test.rs:299 src/ui/update.rs:316
 msgid "Starting…"
 msgstr ""
 
-#: src/ui/test.rs:265
+#: src/ui/test.rs:312
 msgid "Running, started by Claude"
 msgstr ""
 
-#: src/ui/test.rs:265
-msgid "Running"
-msgstr ""
-
-#: src/ui/test.rs:266
+#: src/ui/test.rs:313
 msgid "{} of {}"
 msgstr ""
 
-#: src/ui/test.rs:306
+#: src/ui/test.rs:329
+msgid "planned"
+msgstr ""
+
+#: src/ui/test.rs:403
 msgid "Profile"
 msgstr ""
 
-#: src/ui/test.rs:325
+#: src/ui/test.rs:426
 msgid "Processor threads"
 msgstr ""
 
-#: src/ui/test.rs:336 src/ui/test.rs:359
+#: src/ui/test.rs:438 src/ui/test.rs:460
 msgid "Load"
 msgstr ""
 
-#: src/ui/test.rs:345
+#: src/ui/test.rs:446
 msgid "None"
 msgstr ""
 
-#: src/ui/test.rs:352
+#: src/ui/test.rs:453
 msgid "Card"
 msgstr ""
 
-#: src/ui/test.rs:369
-msgid "Duration"
-msgstr ""
-
-#: src/ui/test.rs:373
+#: src/ui/test.rs:466
 msgid "Time"
 msgstr ""
 
-#: src/ui/test.rs:378
+#: src/ui/test.rs:470
+msgid "Duration"
+msgstr ""
+
+#: src/ui/test.rs:475
 msgid ""
 "Puts the chosen load on the processor and graphics card until the time is up "
 "or a limit is reached."
 msgstr ""
 
-#: src/ui/test.rs:418
+#: src/ui/test.rs:522 src/ui/test.rs:529
 msgid "Custom"
 msgstr ""
 

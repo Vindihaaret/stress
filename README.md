@@ -24,9 +24,11 @@ and [Vifte](https://github.com/Vindihaaret/vifte).
 * **Profiles** (full load, processor only, graphics card only, gaming, light load), durations from one
   minute to "until stopped", and levels that can be changed while a test runs.
 * **Live readings and 30-minute graphs**: processor temperature, utilization and power; per graphics card
-  temperature, utilization, power and fan; test periods are tinted in the graphs. An overview at the top
-  shows the temperatures, power use and how far a test is from its limit, and the window takes on a soft
-  tint that follows the temperature (it can be turned off in the preferences).
+  temperature, utilization, power and fan; test periods and the temperature limit are marked in the
+  graphs. The **Overview** page shows the temperatures, power use, the running test and how far it is from
+  its limit; the **Load Test** page has the clock, Start/Stop and the settings; and each kind of hardware
+  has its own page. The window has the same look as Vifte, with a sidebar and calm, half-transparent cards.
+  A tint that follows the temperature can be turned on in the preferences.
 * **Power supply readings** where the power supply reports them (Corsair HXi/RMi/AXi): output to the
   computer, an estimate of the draw from the wall, the rest of the computer (motherboard, memory, disks,
   fans) and every rail's voltage, current and power.
@@ -215,8 +217,8 @@ the curves in Vifte, and run the same load again to compare.
 
 **It is off until you turn it on**, in Stress → Preferences → Claude (**Allow Claude to run load tests**),
 and can be turned off again at any time. Your temperature limits and longest test always apply; Claude
-can only make the limits stricter. Every test Claude starts, changes or stops shows a notice, the panel
-shows the levels Claude chose, and the status says the test was started by Claude.
+can only make the limits stricter. Every test Claude starts, changes or stops shows a notice, the Load Test
+page shows the levels Claude chose, and the status says the test was started by Claude.
 
 ### Connecting
 
@@ -295,7 +297,7 @@ stresstest mcp                 # the MCP server (normally started by Claude)
 ```
 
 `STRESS_SCREENSHOT=out.png STRESS_PAGE=preferences-safety stresstest` renders the window (optionally
-`preferences`, `preferences-claude` or `about`) to a PNG and quits – GNOME on Wayland does not let other
+`preferences`, `preferences-claude`, `about`, or a page: `test`, `cpu`, `gpu`, `psu`) to a PNG and quits – GNOME on Wayland does not let other
 programs capture windows. `STRESS_SCREENSHOT=out.png STRESS_PAGE=tour` idles 30 seconds, starts a test with
 the saved setup and writes the picture after `STRESS_SCREENSHOT_DELAY` seconds; the
 screenshots in `docs/screenshots` were made this way. Screenshot runs are a separate instance, so they
