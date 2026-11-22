@@ -40,6 +40,7 @@ pub struct GpuLoad {
 impl GpuLoad {
     pub fn start(pci: &str, load: u32) -> Result<GpuLoad, String> {
         let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+        dlog!("Starting the GPU worker for {pci}");
         let mut child = Command::new(exe)
             .args(["gpu-worker", pci])
             .stdin(Stdio::piped())
@@ -58,6 +59,7 @@ impl GpuLoad {
         });
         let reply = rx.recv_timeout(Duration::from_secs(15));
         let fail = |mut child: Child, msg: String| {
+            dlog!("The GPU worker failed: {msg}");
             let _ = child.kill();
             let _ = child.wait();
             Err(msg)
@@ -82,7 +84,17 @@ impl GpuLoad {
 
     /// False when the worker has exited (crash or driver error).
     pub fn running(&mut self) -> bool {
-        matches!(self.child.try_wait(), Ok(None))
+        match self.child.try_wait() {
+            Ok(None) => true,
+            Ok(Some(status)) => {
+                dlog!("The GPU worker exited: {status}");
+                false
+            }
+            Err(err) => {
+                dlog!("The GPU worker cannot be checked: {err}");
+                false
+            }
+        }
     }
 
     pub fn stop(self) {}
@@ -122,6 +134,7 @@ pub fn worker_main(pci: &str) -> i32 {
     let gl = match Context::open(pci) {
         Ok(gl) => gl,
         Err(e) => {
+            dlog!("Could not open {pci}: {e}");
             println!("error {e}");
             return 1;
         }

@@ -76,6 +76,7 @@ pub fn register(application: &adw::Application) {
         .build();
     if let Err(err) = registration {
         eprintln!("Claude integration unavailable: {err}");
+        dlog!("Claude integration unavailable: {err}");
     }
 }
 
@@ -160,7 +161,9 @@ fn finished_json(finished: &Finished) -> Value {
 
 impl App {
     pub(super) fn claude_request(self: &Rc<Self>, method: &str, args: Value, reply: Reply) {
+        dlog!("Claude asks: {method} {args}");
         if !self.config.borrow().claude_control {
+            dlog!("Claude refused: control is turned off");
             return reply.error("Claude control is turned off. Ask the user to turn on “Allow Claude to run load tests” in Stress → Preferences → Claude.");
         }
         let args = match args {
@@ -176,8 +179,14 @@ impl App {
             other => Err(format!("Unknown tool “{other}”.")),
         };
         match result {
-            Ok(text) => reply.ok(text),
-            Err(text) => reply.error(text),
+            Ok(text) => {
+                dlog!("Claude answered ({method}): {}", crate::debuglog::tail(&text, 20));
+                reply.ok(text)
+            }
+            Err(text) => {
+                dlog!("Claude refused ({method}): {text}");
+                reply.error(text)
+            }
         }
     }
 

@@ -111,17 +111,36 @@ fn machine() -> Rc<Machine> {
                 let cpu = hardware::cpu();
                 let gpus = hardware::gpus();
                 let mut sensors = Sensors::new(&gpus);
+                dlog!(
+                    "Hardware: {} ({} threads)\n{}\n{}",
+                    cpu.model,
+                    cpu.threads,
+                    gpus.iter()
+                        .map(|g| format!("{} {} driver {:?}{}", g.pci, g.name, g.driver, if g.boot_vga { ", display" } else { "" }))
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                    sensors.describe()
+                );
                 let first = sensors.sample();
                 let controller = Controller::new(gpus.iter().map(|g| g.pci.clone()).collect());
                 let history = History::start(sensors, controller.clone());
                 let vifte = Arc::new(Mutex::new(None));
                 let shared = vifte.clone();
-                std::thread::spawn(move || loop {
-                    let state = vifte::state();
-                    if let Ok(mut latest) = shared.lock() {
-                        *latest = state;
+                std::thread::spawn(move || {
+                    // Logged at start and whenever it changes.
+                    let mut logged: Option<Option<String>> = None;
+                    loop {
+                        let state = vifte::state();
+                        let now = state.as_ref().map(|s| format!("{s:?}"));
+                        if logged.as_ref() != Some(&now) {
+                            dlog!("Vifte: {}", now.as_deref().unwrap_or("not running (no answer on its socket)"));
+                            logged = Some(now);
+                        }
+                        if let Ok(mut latest) = shared.lock() {
+                            *latest = state;
+                        }
+                        std::thread::sleep(VIFTE_INTERVAL);
                     }
-                    std::thread::sleep(VIFTE_INTERVAL);
                 });
                 Rc::new(Machine { cpu, gpus, history, controller, first, vifte })
             })
@@ -1142,6 +1161,67 @@ impl App {
         about
     }
 
+    /// Preferences → General → Troubleshooting: the debug log, as in Waypoint.
+    fn debug_group(self: &Rc<Self>, dialog: &adw::PreferencesDialog) -> adw::PreferencesGroup {
+        use crate::debuglog;
+        let group = adw::PreferencesGroup::builder().title(tr("Troubleshooting")).build();
+        let switch = adw::SwitchRow::builder()
+            .title(tr("Debug log"))
+            .subtitle(trf("Writes what Stress does to a log file: tests, readings, Claude's requests, updates and errors. Useful when something goes wrong. Logs are deleted after {} days.", &[&debuglog::KEEP_DAYS]))
+            .active(self.config.borrow().debug)
+            .build();
+        switch.add_prefix(&gtk::Image::from_icon_name("utilities-terminal-symbolic"));
+        group.add(&switch);
+        let weak = Rc::downgrade(self);
+        switch.connect_active_notify(move |row| {
+            let Some(app) = weak.upgrade() else { return };
+            let on = row.is_active();
+            if !on {
+                dlog!("Debug log turned off");
+            }
+            app.config.borrow_mut().debug = on;
+            app.config.borrow().save();
+            debuglog::set_enabled(on);
+            if on {
+                dlog!("Debug log turned on in Stress {}\n{}", env!("CARGO_PKG_VERSION"), debuglog::environment());
+            }
+        });
+
+        let home = glib::home_dir();
+        let dir = debuglog::log_dir();
+        let shown = match dir.strip_prefix(&home) {
+            Ok(rest) => format!("~/{}", rest.display()),
+            Err(_) => dir.display().to_string(),
+        };
+        let files = adw::ActionRow::builder().title(tr("Log files")).subtitle(&shown).use_markup(false).build();
+        let open = gtk::Button::builder().label(tr("Open Folder")).valign(gtk::Align::Center).build();
+        let copy = gtk::Button::builder().label(tr("Copy Latest Log")).valign(gtk::Align::Center).build();
+        files.add_suffix(&open);
+        files.add_suffix(&copy);
+        group.add(&files);
+        let window = self.window.clone();
+        open.connect_clicked(move |_| {
+            let dir = debuglog::log_dir();
+            let _ = std::fs::create_dir_all(&dir);
+            gtk::FileLauncher::new(Some(&gio::File::for_path(&dir))).launch(Some(&window), None::<&gio::Cancellable>, |_| {});
+        });
+        let prefs = dialog.clone();
+        copy.connect_clicked(move |_| {
+            let Some(path) = debuglog::latest() else {
+                prefs.add_toast(adw::Toast::new(tr("No logs yet")));
+                return;
+            };
+            let text = std::fs::read_to_string(&path).unwrap_or_default();
+            // At most the last 2 MB, so the clipboard stays usable.
+            let start = text.len().saturating_sub(2_000_000);
+            let start = (start..text.len()).find(|i| text.is_char_boundary(*i)).unwrap_or(0);
+            prefs.clipboard().set_text(&text[start..]);
+            let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            prefs.add_toast(adw::Toast::new(&trf("{} is copied", &[&name])));
+        });
+        group
+    }
+
     fn show_preferences(self: &Rc<Self>) -> adw::PreferencesDialog {
         let dialog = adw::PreferencesDialog::new();
         let page = adw::PreferencesPage::builder()
@@ -1215,6 +1295,7 @@ impl App {
         page.add(&language_group);
         page.add(&self.update_preferences_group());
         page.add(&self.helpers_group(&dialog));
+        page.add(&self.debug_group(&dialog));
 
         // Uninstalling lives at the bottom here, not in the main menu, so it is a deliberate choice.
         let removal = adw::PreferencesGroup::new();

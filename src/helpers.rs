@@ -57,7 +57,10 @@ fn run_privileged(script: String, done: impl FnOnce(Result<(), Error>) + 'static
     let argv: [&std::ffi::OsStr; 4] = ["pkexec".as_ref(), "sh".as_ref(), "-c".as_ref(), script.as_ref()];
     let process = match gio::Subprocess::newv(&argv, flags) {
         Ok(process) => process,
-        Err(err) => return done(Err(Error::Failed(err.to_string()))),
+        Err(err) => {
+            dlog!("pkexec could not start: {err}");
+            return done(Err(Error::Failed(err.to_string())));
+        }
     };
     let Some(stdout) = process.stdout_pipe() else {
         return done(Err(Error::Failed("no output pipe".into())));
@@ -69,7 +72,13 @@ fn run_privileged(script: String, done: impl FnOnce(Result<(), Error>) + 'static
             output.push_str(&line);
             output.push('\n');
         }
-        let outcome = match process.wait_future().await {
+        let finished = process.wait_future().await;
+        dlog!(
+            "pkexec helper script: exit {:?}\n{}",
+            finished.as_ref().map(|_| process.exit_status()),
+            crate::debuglog::tail(&output, 40)
+        );
+        let outcome = match finished {
             Err(err) => Err(Error::Failed(err.to_string())),
             Ok(()) if process.is_successful() => Ok(()),
             Ok(()) if process.exit_status() == PKEXEC_DISMISSED => Err(Error::Cancelled),

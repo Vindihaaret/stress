@@ -50,6 +50,32 @@ pub struct Sample {
     pub psu: Option<PsuReading>,
 }
 
+impl Sample {
+    /// One line with the readings, for the debug log.
+    pub fn summary(&self) -> String {
+        let v = |value: Option<f64>, unit: &str| value.map_or("–".into(), |v| format!("{v:.1}{unit}"));
+        let mut text = format!(
+            "CPU {} {} {}",
+            v(self.cpu_temperature, "°C"),
+            v(self.cpu_utilization, "%"),
+            v(self.cpu_power, "W")
+        );
+        for (i, g) in self.gpus.iter().enumerate() {
+            text += &format!(
+                " · GPU{i} {} {} {} fan {}",
+                v(g.temperature, "°C"),
+                v(g.utilization, "%"),
+                v(g.power, "W"),
+                v(g.fan_percent, "%")
+            );
+        }
+        if let Some(psu) = &self.psu {
+            text += &format!(" · PSU {:.0}W {}", psu.output, v(psu.temperature, "°C"));
+        }
+        text
+    }
+}
+
 enum GpuSource {
     Nvidia(String),
     /// amdgpu and Intel: hwmon for temperature and power, `gpu_busy_percent`
@@ -116,6 +142,27 @@ impl Sensors {
         // Prime the counters so the first real sample has a time span.
         sensors.sample();
         sensors
+    }
+
+    /// Which sensors were found, for the debug log.
+    pub fn describe(&self) -> String {
+        let mut lines = vec![
+            format!("CPU temperature: {}", self.cpu_temperature.as_ref().map_or("none".into(), |p| p.display().to_string())),
+            format!("CPU power (RAPL): {} domain(s){}", self.rapl.len(), if self.rapl_denied { ", only readable by root" } else { "" }),
+        ];
+        for gpu in &self.gpus {
+            lines.push(match gpu {
+                GpuSource::Nvidia(pci) => format!("GPU {pci}: NVML"),
+                GpuSource::Sysfs { hwmon, busy, .. } => format!(
+                    "GPU {}: sysfs, hwmon {}, busy {}",
+                    busy.parent().map_or(String::new(), |p| p.display().to_string()),
+                    hwmon.as_ref().map_or("none".into(), |p| p.display().to_string()),
+                    if busy.exists() { "yes" } else { "no" },
+                ),
+            });
+        }
+        lines.push(format!("PSU: {}", self.psu.as_ref().map_or("none".into(), |p| format!("{} ({})", p.name, p.hwmon.display()))));
+        lines.join("\n")
     }
 
     pub fn sample(&mut self) -> Sample {

@@ -208,12 +208,14 @@ impl App {
                 Ok(release) => release,
                 Err(err) => {
                     eprintln!("update check failed: {err}");
+                    dlog!("Update check failed: {err}");
                     if manual {
                         app.update_message(tr("Could not check for updates"), &trf("Error: {}", &[&err]));
                     }
                     return;
                 }
             };
+            dlog!("Update check: newest release is {} (this is {})", release.tag, env!("CARGO_PKG_VERSION"));
             {
                 let mut config = app.config.borrow_mut();
                 config.last_update_check = glib::DateTime::now_utc().map(|now| now.to_unix()).unwrap_or(0);
@@ -347,12 +349,14 @@ impl App {
         dialog.set_can_close(false);
         dialog.present(Some(&self.window));
 
+        dlog!("Updating to {}", release.tag);
         let argv = ["sh", "-c", INSTALL_SCRIPT, "stresstest-update", &release.tag, &release.version];
         let argv: Vec<&std::ffi::OsStr> = argv.iter().map(|a| a.as_ref()).collect();
         let flags = gio::SubprocessFlags::STDOUT_PIPE | gio::SubprocessFlags::STDERR_MERGE;
         let process = match gio::Subprocess::newv(&argv, flags) {
             Ok(process) => process,
             Err(err) => {
+                dlog!("The update could not start: {err}");
                 dialog.set_can_close(true);
                 dialog.force_close();
                 return self.update_message(tr("The update failed"), &trf("Error: {}", &[&err]));
@@ -363,16 +367,20 @@ impl App {
         let weak = Rc::downgrade(self);
         let version = release.version.clone();
         glib::spawn_future_local(async move {
+            let mut output = String::new();
             while let Ok(Some(line)) = reader.read_line_utf8_future(glib::Priority::DEFAULT).await {
                 let line = line.trim();
                 if line.is_empty() {
                     continue;
                 }
+                output += line;
+                output.push('\n');
                 status.set_label(line);
                 buffer.insert(&mut buffer.end_iter(), &format!("{line}\n"));
                 log.scroll_to_iter(&mut buffer.end_iter(), 0.0, false, 0.0, 1.0);
             }
             let ok = process.wait_future().await.is_ok() && process.is_successful();
+            dlog!("Update {}:\n{}", if ok { "installed" } else { "failed" }, crate::debuglog::tail(&output, 40));
             spinner.set_spinning(false);
             spinner.set_visible(false);
             dialog.set_response_enabled("close", true);

@@ -72,6 +72,8 @@ const WATCH_INTERVAL: Duration = Duration::from_secs(1);
 /// Samples in a row a loaded part's temperature may be missing, once it has
 /// been read.
 const MAX_MISSING: u32 = 5;
+/// The debug log gets the readings this often while a test runs.
+const LOG_EVERY: Duration = Duration::from_secs(10);
 
 struct Running {
     cpu: Option<CpuLoad>,
@@ -87,6 +89,8 @@ struct Running {
     gpu_seen: bool,
     /// Samples in a row with such a temperature missing.
     missing: u32,
+    /// When the readings were last written to the debug log.
+    logged: Option<Instant>,
 }
 
 enum Phase {
@@ -126,6 +130,7 @@ impl Controller {
             }
             state.phase = Phase::Starting { cancelled: false };
         }
+        dlog!("Test starts: {levels:?}, {} s, {limits:?}", duration.as_secs());
         let this = self.clone();
         std::thread::spawn(move || {
             let gpu = match levels.gpu.and_then(|i| this.gpus.get(i)) {
@@ -152,7 +157,11 @@ impl Controller {
                 cpu_seen: false,
                 gpu_seen: false,
                 missing: 0,
+                logged: None,
             };
+            if let Some(gpu) = &running.gpu {
+                dlog!("GPU load running on “{}”", gpu.renderer);
+            }
             let mut state = this.state.lock().unwrap();
             if matches!(state.phase, Phase::Starting { cancelled: true }) {
                 state.phase = Phase::Idle;
@@ -193,6 +202,7 @@ impl Controller {
     pub fn set_levels(&self, cpu_threads: usize, cpu_load: u32, gpu_load: u32) {
         let mut state = self.state.lock().unwrap();
         let Phase::Running(run) = &mut state.phase else { return };
+        dlog!("Load changed: {cpu_threads} threads at {cpu_load} %, GPU {gpu_load} %");
         run.levels.cpu_threads = cpu_threads;
         run.levels.cpu_load = cpu_load;
         run.levels.gpu_load = gpu_load;
@@ -238,6 +248,7 @@ impl Controller {
             Phase::Running(run) => run.started.elapsed(),
             _ => Duration::ZERO,
         };
+        dlog!("Test ended after {} s: {reason:?}", ran.as_secs());
         state.unseen = Some(Finished { reason, ran });
         let running = std::mem::replace(&mut state.phase, Phase::Idle);
         drop(state);
@@ -291,6 +302,14 @@ impl Controller {
         } else {
             None
         };
+        if reason.is_some() || run.logged.is_none_or(|at| at.elapsed() >= LOG_EVERY) {
+            run.logged = Some(Instant::now());
+            dlog!(
+                "{} · limits CPU {cpu_limit:.0} GPU {gpu_limit:.0}{}",
+                sample.summary(),
+                vifte.as_ref().map_or(String::new(), |v| format!(" · Vifte {v:?}"))
+            );
+        }
         if let Some(reason) = reason {
             Self::end(state, reason);
         }

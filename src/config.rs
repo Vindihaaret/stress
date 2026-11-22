@@ -49,6 +49,8 @@ pub struct Config {
     pub last_update_check: i64,
     /// A release tag the user chose to skip.
     pub skipped_version: Option<String>,
+    /// Write a debug log (see `debuglog.rs`).
+    pub debug: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -80,6 +82,7 @@ impl Default for Config {
             auto_update_check: true,
             last_update_check: 0,
             skipped_version: None,
+            debug: false,
         }
     }
 }

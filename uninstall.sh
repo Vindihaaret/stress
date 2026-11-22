@@ -9,13 +9,14 @@ PREFIX="${PREFIX:-$HOME/.local}"
 APP_ID=io.github.stresstest.Stress
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/stresstest"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/stresstest"
+LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/stresstest"
 
 rm -fv "$PREFIX/bin/stresstest" \
        "$PREFIX/share/applications/$APP_ID.desktop" \
        "$PREFIX/share/icons/hicolor/scalable/apps/$APP_ID.svg" \
        "$PREFIX/share/icons/hicolor/symbolic/apps/$APP_ID-symbolic.svg"
 
-rm -rf "$CACHE_DIR"
+rm -rf "$CACHE_DIR" "$LOG_DIR"
 
 if [ -e /etc/udev/rules.d/60-stresstest-rapl.rules ]; then
     echo "==> Removing processor power access (asks for your sudo password)"

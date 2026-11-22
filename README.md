@@ -126,8 +126,8 @@ Click **Uninstall** at the bottom of **Preferences → General**, or run:
 ./uninstall.sh --purge   # also removes ~/.config/stresstest
 ```
 
-Both also remove the system helper (see [Processor power](#processor-power)) if Stress installed it, and
-the app's own uninstaller removes the Claude Code registration.
+Both also remove the debug logs and the system helper (see [Processor power](#processor-power)) if Stress
+installed it, and the app's own uninstaller removes the Claude Code registration.
 
 ## Load tests
 
@@ -258,6 +258,12 @@ stresstest run --cpu-load 100 --gpu 0000:01:00.0 --gpu-load 80 --seconds 300
 
 ## Troubleshooting
 
+* **Debug log** – turn on *Preferences → General → Debug log* when something goes wrong. Every part of
+  Stress (the window, the MCP server for Claude, the graphics card worker and the command line) then writes
+  what it does to `~/.local/state/stresstest/logs/stress-<date>.log`: the system and hardware found, each
+  test with its setup, readings every 10 seconds and why it ended, Claude's requests, update checks and
+  unexpected errors. *Open Folder* and *Copy Latest Log* are next to the switch. The logs are only readable
+  by you, hold no passwords, and are deleted after 14 days.
 * **A graphics card is listed as "cannot be loaded"** – the reason is shown next to it. "No driver is
   active (the system was started with nomodeset)" means the kernel parameter `nomodeset` keeps the card's
   driver from starting.
@@ -272,6 +278,7 @@ stresstest run --cpu-load 100 --gpu 0000:01:00.0 --gpu-load 80 --seconds 300
 |---|---|
 | `~/.local/bin/stresstest` | The program |
 | `~/.config/stresstest/config.json` | Settings and the last test setup |
+| `~/.local/state/stresstest/logs/` | Debug logs (only when turned on) |
 | `/etc/udev/rules.d/60-stresstest-rapl.rules` | Processor power access (only when you allowed it) |
 
 ## Translations

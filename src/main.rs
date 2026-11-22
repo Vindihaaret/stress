@@ -1,3 +1,6 @@
+// First, so the dlog! macro is known in every module below.
+#[macro_use]
+mod debuglog;
 mod cli;
 mod config;
 mod cpuload;
@@ -24,6 +27,12 @@ pub const APP_ID: &str = "io.github.stresstest.Stress";
 
 fn main() -> std::process::ExitCode {
     let args: Vec<String> = std::env::args().collect();
+    debuglog::setup(match args.get(1).map(String::as_str) {
+        Some("mcp") => "mcp",
+        Some("gpu-worker") => "gpu-worker",
+        Some("probe" | "monitor" | "run") => "cli",
+        _ => "window",
+    });
     if args.get(1).map(String::as_str) == Some("mcp") {
         return mcp::run();
     }

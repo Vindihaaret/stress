@@ -137,7 +137,12 @@ fn call_tool(params: &Value) -> Value {
     if !known {
         return json!({ "isError": true, "content": [{ "type": "text", "text": format!("Unknown tool “{name}”.") }] });
     }
-    match call_app(name, &arguments) {
+    let reply = call_app(name, &arguments);
+    match &reply {
+        Ok(result) => dlog!("Tool {name} {arguments} → ok {}", result["ok"]),
+        Err(error) => dlog!("Tool {name} {arguments} → {error}"),
+    }
+    match reply {
         Ok(result) if result["ok"] == true => {
             let text = result.get("text").and_then(Value::as_str).unwrap_or_default();
             json!({ "content": [{ "type": "text", "text": text }] })
@@ -181,7 +186,11 @@ pub fn run() -> ExitCode {
         // Notifications (no id) need no answer.
         let Some(id) = message.get("id").cloned() else { continue };
         let params = message.get("params").cloned().unwrap_or(Value::Null);
-        let response = match message.get("method").and_then(Value::as_str).unwrap_or_default() {
+        let method = message.get("method").and_then(Value::as_str).unwrap_or_default();
+        if method != "tools/call" {
+            dlog!("MCP request: {method}");
+        }
+        let response = match method {
             "initialize" => json!({ "jsonrpc": "2.0", "id": id, "result": initialize(&params) }),
             "ping" => json!({ "jsonrpc": "2.0", "id": id, "result": {} }),
             "tools/list" => json!({ "jsonrpc": "2.0", "id": id, "result": { "tools": tools() } }),

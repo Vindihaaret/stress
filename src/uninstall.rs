@@ -34,6 +34,10 @@ pub fn uninstall(purge: bool) -> io::Result<usize> {
         }
     }
     let _ = fs::remove_dir_all(glib::user_cache_dir().join("stresstest"));
+    // The debug logs (~/.local/state/stresstest).
+    if let Some(state) = crate::debuglog::log_dir().parent() {
+        let _ = fs::remove_dir_all(state);
+    }
     if purge {
         match fs::remove_dir_all(config_dir()) {
             Ok(()) => {}
@@ -66,6 +70,7 @@ mod tests {
         std::env::set_var("XDG_DATA_HOME", root.join(".local/share"));
         std::env::set_var("XDG_CONFIG_HOME", root.join(".config"));
         std::env::set_var("XDG_CACHE_HOME", root.join(".cache"));
+        std::env::set_var("XDG_STATE_HOME", root.join(".local/state"));
         let files = installed_files();
         for path in files.iter().chain([&config_dir().join("config.json")]) {
             fs::create_dir_all(path.parent().unwrap()).unwrap();
